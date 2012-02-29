@@ -1,2 +1,4 @@
-BOUNTENV
+.DS_Store
+/.idea
 *.pyc
+/site/

@@ -3,7 +3,10 @@ import os
 import re
 import tarfile
 import zipfile
+from fabric.context_managers import cd
 from fabric.operations import local, sudo, run
+from path import path
+import shutil
 from bount import cuisine
 
 __author__ = 'mturilin'
@@ -34,7 +37,7 @@ def file_delete(file):
 
 
 def python_egg_ensure(egg_name):
-    sudo("pip install %s" % egg_name)
+    cuisine.run("pip install %s" % egg_name)
 
 
 def sudo_pipeline(command, user=None):
@@ -179,14 +182,41 @@ def local_gunzip(gz_file, to_dir, overwrite=False, autountar=True):
         os.remove(full_file_name)
 
 
+def remote_home():
+    with cd("~"):
+        return run("pwd")
+
+def dir_delete(dir_name):
+    cuisine.run('rm -rf %s' % dir_name)
 
 
 
+def local_copy_files_and_folders(from_dir, to_dir):
+    if from_dir == to_dir:
+        return
+
+    files = os.listdir(from_dir)
+
+    for (directory_item) in files:
+        if directory_item.find('.') >= 0:
+            continue
+
+        full_path = path(from_dir).joinpath(directory_item)
+        new_path = path(to_dir).joinpath(directory_item)
+
+        if os.path.isdir(full_path):
+            if os.path.exists(new_path):
+                shutil.rmtree(new_path, ignore_errors=True)
+            shutil.copytree(full_path, new_path)
+        else:
+            if os.path.exists(new_path):
+                os.remove(new_path)
+            shutil.copy(full_path,to_dir)
+        print("Copying %s..." % directory_item)
 
 
-
-
-
+def unix_eol(string):
+    return string.replace('\r','')
 
 
 

@@ -122,7 +122,7 @@ def run(*args, **kwargs):
     elif mode == MODE_USER:
         return fabric.api.run(*args, **kwargs)
     elif mode == MODE_LOCAL:
-        return fabric.api.local(capture=True, *args, **kwargs)
+        return fabric.operations.local(capture=True, *args, **kwargs)
 
 
 def multiargs(function):
