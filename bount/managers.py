@@ -512,9 +512,6 @@ class DjangoManager:
 
         temp_dir_prefix = 'django_temp_'
 
-        # clear old archives
-        local_dirs_delete(self.project_local_path, '%s%s.*' % (temp_dir_prefix, self.project_name))
-
         # zip and upload file
         temp_dir = temp_dir_prefix + self.project_name + '_' + timestamp_str()
 
@@ -522,7 +519,6 @@ class DjangoManager:
         temp_local_path = path(self.project_local_path).joinpath(temp_dir)
         local_dir_ensure(temp_local_path)
         dir_ensure(temp_remote_path)
-
 
         files = self.scm.local_archive(temp_local_path)
 
@@ -549,6 +545,9 @@ class DjangoManager:
             precomp.compile()
 
         self.manage("collectstatic --noinput")
+
+        # clear old archives
+        local_dirs_delete(self.project_local_path, '%s%s.*' % (temp_dir_prefix, self.project_name))
 
         ## upload ends here
         self.after_upload_code()
