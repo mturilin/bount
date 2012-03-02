@@ -2,3 +2,5 @@
 /.idea
 *.pyc
 /site/
+/Bount.egg-info/
+/build/

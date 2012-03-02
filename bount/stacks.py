@@ -1,11 +1,12 @@
 from axel import Event
-from datetime import datetime
 from fabric.context_managers import cd
 from fabric.operations import get, put
 import os
 import imp
+from managers import SqliteManager
 from path import path
 import sys
+from bount import timestamp_str
 from bount import cuisine
 from bount.cuisine import dir_ensure, cuisine_sudo, dir_attribs, sudo
 from bount.managers import UbuntuManager, PythonManager, ApacheManagerForUbuntu, DjangoManager, PostgresManager, ConfigurationException
@@ -54,6 +55,9 @@ class Stack(object):
     def restore_latest_media(self):
         raise NotImplementedError('Method is not implemented')
 
+    def setup_precompilers(self):
+        pass
+
 #    def update_local_media(self):
 #        raise NotImplementedError('Method is not implemented')
 
@@ -61,8 +65,6 @@ class Stack(object):
 current_stack = Stack()
 
 
-def timestamp_str():
-    return datetime.now().strftime("%Y%m%d_%H%M%S%f")
 
 # For names see http://bleach.wikia.com/wiki/Characters
 
@@ -95,10 +97,13 @@ class DalkStack(Stack):
     ubuntu = None
     django = None
     python = None
-    postgres = None
+    database = None
     apache = None
 
-    def __init__(self, settings_module, dependencies_path, project_name, source_root, use_virtualenv, local_backup_dir='backup'):
+    def __init__(self, settings_module, dependencies_path, project_name, source_root, use_virtualenv,
+                 local_backup_dir='backup', precompilers=None):
+        self.precompilers = precompilers if precompilers else []
+
         self.ubuntu = UbuntuManager()
         self.ubuntu.dependencies = [
             "postgresql",
@@ -120,11 +125,15 @@ class DalkStack(Stack):
             "python-psycopg2"
         ]
 
+        for precomp in precompilers:
+            self.ubuntu.dependencies += precomp.get_os_dependencies()
+
         self.apache = ApacheManagerForUbuntu()
 
         # Django
         project_local_path = path(os.getcwd()) # project root is current working dir
 
+        sys.path.append(source_root)
         module = imp.find_module(settings_module)
         settings = imp.load_module(settings_module, *module)
 
@@ -150,12 +159,16 @@ class DalkStack(Stack):
         static_root = path(remote_proj_path).joinpath(static_rel_path)
         static_url = settings.STATIC_URL
 
+        try:
+            server_admin = settings.ADMINS[0][1]
+        except IndexError:
+            server_admin = 'NOBODY'
+
         self.django = DjangoManager(project_name, remote_proj_path, project_local_path, remote_site_path,
             remote_src_path, settings_module=settings_module,
             use_virtualenv=use_virtualenv, virtualenv_path=remote_site_path,
             media_root=media_root, media_url=media_url, static_root=static_root, static_url=static_url,
-            server_admin=settings.ADMINS[0][1])
-
+            server_admin=server_admin, precompilers=precompilers)
 
         self.django.webserver = self.apache
 
@@ -165,16 +178,19 @@ class DalkStack(Stack):
 
 
         # Postgres
-        if 'postgresql' not in settings.DATABASES['default']['ENGINE']:
-            raise ConfigurationException('Project\'s database is not PostgreSQL')
+        if 'postgresql' in settings.DATABASES['default']['ENGINE']:
+            # we try to use the same username and password for Postgres as for the local
+            # override right after creation if need different
+            self.database = PostgresManager(
+                database_name=settings.DATABASES['default']['NAME'],
+                user=settings.DATABASES['default']['USER'],
+                password=settings.DATABASES['default']['PASSWORD'],
+            )
+        elif 'sqlite' in settings.DATABASES['default']['ENGINE']:
+            self.database = SqliteManager('')
+        else:
+            raise ConfigurationException('Project\'s database is not PostgreSQL or Sqlite')
 
-        # we try to use the same username and password for Postgres as for the local
-        # override right after creation if need different
-        self.postgres = PostgresManager(
-            database_name=settings.DATABASES['default']['NAME'],
-            user=settings.DATABASES['default']['USER'],
-            password=settings.DATABASES['default']['PASSWORD'],
-        )
 
 
         # Temporary local paths - override if needed
@@ -190,6 +206,9 @@ class DalkStack(Stack):
                 'south', ],
             use_virtualenv, remote_site_path)
 
+        for precomp in precompilers:
+            self.python.dependencies += precomp.get_python_dependencies()
+
         self.django.python = self.python
 
 
@@ -201,10 +220,16 @@ class DalkStack(Stack):
         self.python.init(delete_if_exists=False, python_path=self.django.src_root)
         self.python.setup_dependencies()
 
+    def setup_precompilers(self):
+        super(DalkStack, self).setup_precompilers()
+        for precomp in self.precompilers:
+            precomp.setup()
+
+
     def init_database(self):
-        self.postgres.configure(enable_remote_access=True)
-        self.postgres.create_user()
-        self.postgres.create_database(delete_if_exists=False)
+        self.database.configure(enable_remote_access=True)
+        self.database.create_user()
+        self.database.create_database(delete_if_exists=False)
 
     def init_dirs(self):
         self.django.init()
@@ -230,7 +255,7 @@ class DalkStack(Stack):
                 timestamp_str())
 
     def backup_database(self):
-        self.postgres.backup_database(self._create_db_backup_name())
+        self.database.backup_database(self._create_db_backup_name())
 
     def migrate_data(self):
         self.django.migrate_data()
@@ -242,7 +267,7 @@ class DalkStack(Stack):
         remote_file_path = "%s/%s" % (remote_dir, remote_file_basename)
 
         dir_ensure(remote_dir, mode='777')
-        self.postgres.backup_database(remote_file_basename, folder=remote_dir, zip=True)
+        self.database.backup_database(remote_file_basename, folder=remote_dir, zip=True)
 
         local_dir_ensure(self.local_db_dump_dir)
         get(remote_file_path, self.local_db_dump_dir)
@@ -265,7 +290,7 @@ class DalkStack(Stack):
 
         put(dump_path, "")
 
-        self.postgres.init_database(init_sql_file=remote_dump_path, delete_if_exists=True, unzip=True)
+        self.database.init_database(init_sql_file=remote_dump_path, delete_if_exists=True, unzip=True)
 
         self.django.migrate_data()
 
@@ -311,9 +336,13 @@ class DalkStack(Stack):
 
 
     @classmethod
-    def build_stack(cls, settings_path, dependencies_path, project_name, source_root, use_virtualenv=True):
+    def build_stack(cls, settings_path, dependencies_path, project_name, source_root,
+                    use_virtualenv=True, precompilers=None):
         global current_stack
-        current_stack = cls(settings_path, dependencies_path, project_name, source_root, use_virtualenv)
+
+        current_stack = cls(settings_path, dependencies_path, project_name, source_root,
+            use_virtualenv, precompilers=precompilers)
+
         return current_stack
 
 #    def update_local_media(self):
@@ -329,11 +358,12 @@ def install():
     before_install()
 
 #    current_stack.setup_os_dependencies()
-    current_stack.setup_python_dependencies()
+#    current_stack.setup_python_dependencies()
+    current_stack.setup_precompilers()
+#
+#    current_stack.init_database()
 
-    current_stack.init_database()
-
-    current_stack.init_dirs()
+#    current_stack.init_dirs()
     current_stack.upload()
     current_stack.configure_webserver()
     current_stack.start_restart_webserver()

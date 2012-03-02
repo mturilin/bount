@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from functools import wraps
 import logging
+from bount import timestamp_str
 from fabric.context_managers import lcd, cd, prefix
 from fabric.operations import *
 from path import path
@@ -8,6 +9,7 @@ import types
 from bount import cuisine
 from bount.cuisine import cuisine_sudo, file_attribs, dir_ensure, file_read, text_ensure_line, file_write, dir_attribs
 from bount.utils import local_file_delete, file_delete, python_egg_ensure, file_unzip, text_replace_line_re, sudo_pipeline, sym_link, clear_dir, dir_delete, remote_home, unix_eol
+from utils import local_dir_ensure, local_dirs_delete
 
 __author__ = 'mturilin'
 
@@ -69,7 +71,8 @@ class PythonManager():
             if cuisine.dir_exists(virtualenv_full_path) and delete_if_exists:
                 dir_delete(virtualenv_full_path)
 
-            pip_install(['virtualenv'])
+            with cuisine_sudo():
+                pip_install(['virtualenv'])
 
             with cuisine_sudo():
                 dir_ensure(self.virtualenv_path, recursive=True, mode=777)
@@ -109,9 +112,32 @@ class PythonManager():
         return self.get_version_pattern("Python\\s+(\\d+\\.\\d+).*")
 
 
+class DatabaseManager(object):
+    def create_user(self):
+        pass
+
+    def create_database(self, delete_if_exists=False):
+        pass
+
+    def drop_database(self):
+        pass
+
+    def configure(self, enable_remote_access=False):
+        pass
+
+    def backup_database(self, filename, zip=False, folder=None):
+        pass
+
+    def init_database(self, init_sql_file, delete_if_exists=False, unzip=False):
+        pass
 
 
-class PostgresManager(object):
+class SqliteManager(DatabaseManager):
+    def __init__(self, dbfile):
+        self.dbfile = dbfile
+
+
+class PostgresManager(DatabaseManager):
     def __init__(self, database_name, user, password, superuser_login="postgres", host="localhost"):
         self.database_name = database_name
         self.user = user
@@ -259,14 +285,40 @@ class ApacheManagerForUbuntu():
 
 
 class GitManager:
-    def __init__(self, path):
-        self.dir = path
+    def __init__(self, dir):
+        self.dir = dir
 
-    def local_archive(self, filename, remove_first=False):
-        with lcd(self.dir):
-            if remove_first: local("rm -f %s" % filename)
-            branch = "HEAD"
-            local("git archive %s --format zip --output %s" % (branch, filename))
+    def basename(self):
+        return "%s_%s" %\
+               ("gitarchive_",
+                timestamp_str())
+
+    def local_archive(self, file_path, include_submodules=True):
+        basename_prefix = self.basename()
+        files = dict()
+        dirs = [''] # we have atleast one dir
+
+
+        # adding dirs from submodules
+        if include_submodules:
+            gitmodule_path = path(self.dir).joinpath('.gitmodules')
+            if os.path.exists(gitmodule_path):
+                with open(gitmodule_path,'r') as file:
+                    lines = file.read().split('\n')
+                    regex = re.compile('\\s*path\\s*=\\s*(.*)\\s*')
+                    dirs += [regex.match(line).group(1) for line in lines if regex.match(line)]
+
+        i = 0
+        for cur_dir in dirs:
+            cur_dur_full_path = path(self.dir).joinpath(cur_dir)
+            with lcd(cur_dur_full_path):
+                basename = '%s_%d.zip' % (basename_prefix, i)
+                local("git archive %s --format zip --output %s" % ("HEAD", path(file_path).joinpath(basename)))
+                files[cur_dir] = basename
+                i += 1
+        return files
+
+
 
 
 class HgManager:
@@ -329,6 +381,9 @@ django_check_config = create_check_config([
     'server_admin',
 ])
 
+
+
+
 class DjangoManager:
     """
         This manager uses Django Project Convention:
@@ -347,7 +402,7 @@ class DjangoManager:
                  remote_site_path, src_root=None, settings_module='settings',
                  use_virtualenv = True, virtualenv_path=None, virtualenv_name='ENV',
                  media_root=None, media_url=None, static_root=None, static_url=None,
-                 server_admin=None):
+                 server_admin=None, precompilers=None):
 
         logger.info("Creating DjangoManager")
 
@@ -358,7 +413,6 @@ class DjangoManager:
 
         self.log_path = None
 
-        self.archive_file = "source_tree.zip"
         self.scm = GitManager(self.project_local_path)
 
 
@@ -377,10 +431,16 @@ class DjangoManager:
         self.media_url = media_url
         self.static_url =  static_url
 
-        
         self.webserver = None
         self.python = None
         self.server_admin = server_admin
+
+        if precompilers:
+            self.precompilers = precompilers
+            for precomp in precompilers:
+                precomp.root = self.remote_project_path
+        else: 
+            self.precompilers = list()
 
         logger.info(self.__dict__)
 
@@ -422,6 +482,25 @@ class DjangoManager:
     def after_upload_code(self):
         pass
 
+    def clear_remote_project_path_save_site(self):
+        home_dir = remote_home()
+        site_path_basename = path(self.remote_site_path).name
+        with cuisine_sudo():
+            cuisine.dir_ensure("%s/tmp" % home_dir, mode='777')
+            dir_delete("%(home_dir)s/tmp/%(site_path_basename)s" % locals())
+            cuisine.run('mv %(site_dir)s %(home_dir)s/tmp' % {'site_dir': self.remote_site_path, 'home_dir': home_dir})
+
+            with cuisine_sudo():
+                clear_dir(self.remote_project_path)
+
+
+        #restore site dir
+        run('mv %(home_dir)s/tmp/%(site_dir_basename)s %(proj_path)s' % {
+            'site_dir_basename': site_path_basename,
+            'proj_path': self.remote_project_path,
+            'home_dir': home_dir
+        })
+
     @django_check_config
     def upload_code(self):
         if self.webserver:
@@ -429,45 +508,49 @@ class DjangoManager:
 
         self.before_upload_code()
 
-        # saving the site dir
-        home_dir = remote_home()
-        site_path_basename = path(self.remote_site_path).basename()
-        with cuisine_sudo():
-            cuisine.dir_ensure("%s/tmp" % home_dir, mode='777')
-            dir_delete("%(home_dir)s/tmp/%(site_path_basename)s" % locals())
-            cuisine.run('mv %(site_dir)s %(home_dir)s/tmp' % {'site_dir':self.remote_site_path, 'home_dir': home_dir})
+        self.clear_remote_project_path_save_site()
 
-        with cuisine_sudo():
-            self.clear_remote_dir()
+        temp_dir_prefix = 'django_temp_'
+
+        # clear old archives
+        local_dirs_delete(self.project_local_path, '%s%s.*' % (temp_dir_prefix, self.project_name))
 
         # zip and upload file
-        archive_remote_full_path = "%s/%s" % (self.remote_project_path, self.archive_file)
-        archive_local_full_path = "%s/%s" % (self.project_local_path, self.archive_file)
-        self.scm.local_archive(archive_local_full_path, remove_first=True)
-        put(archive_local_full_path, archive_remote_full_path, use_sudo=True)
-        local_file_delete(archive_local_full_path)
+        temp_dir = temp_dir_prefix + self.project_name + '_' + timestamp_str()
 
-        #unzip file
-        with cuisine_sudo():
-            file_unzip(archive_remote_full_path, self.remote_project_path)
-            file_delete(archive_remote_full_path)
+        temp_remote_path = path(self.remote_project_path).joinpath(temp_dir)
+        temp_local_path = path(self.project_local_path).joinpath(temp_dir)
+        local_dir_ensure(temp_local_path)
+        dir_ensure(temp_remote_path)
+
+
+        files = self.scm.local_archive(temp_local_path)
+
+        for dir, file in files.iteritems():
+            local_archive_path = temp_local_path.joinpath(file)
+            remote_archive_path = temp_remote_path.joinpath(file)
+            put(str(local_archive_path), str(temp_remote_path), use_sudo=True)
+            local_file_delete(local_archive_path)
+
+            #unzip file
+            with cuisine_sudo():
+                file_unzip(remote_archive_path, path(self.remote_project_path).joinpath(dir))
+                file_delete(remote_archive_path)
+
 
         cuisine.run("cd %s" % self.src_root)
         cuisine.run("pwd")
 
         with cuisine_sudo():
             cuisine.dir_attribs(self.remote_project_path, mode="777", recursive=True)
-#            file_attribs(path(self.src_root).joinpath("manage.py"), mode="777")
 
-        #restore site dir
-        run('mv %(home_dir)s/tmp/%(site_dir_basename)s %(proj_path)s' % {
-            'site_dir_basename': site_path_basename,
-            'proj_path':self.remote_project_path,
-            'home_dir': home_dir
-            })
+
+        for precomp in self.precompilers:
+            precomp.compile()
+
+        self.manage("collectstatic --noinput")
 
         ## upload ends here
-
         self.after_upload_code()
 
         if self.webserver:
@@ -517,11 +600,6 @@ class DjangoManager:
 
             return cuisine.file_write(settings_file_path, settings_content), replaced
 
-
-    @django_check_config
-    def clear_remote_dir(self):
-        dir = self.remote_project_path
-        clear_dir(dir)
 
     @django_check_config
     def create_apache_config(self):

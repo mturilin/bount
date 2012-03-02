@@ -190,6 +190,36 @@ def dir_delete(dir_name):
     cuisine.run('rm -rf %s' % dir_name)
 
 
+def local_ls_re(root_dir, regex):
+    """
+    Lists files in the dirs that match a reg ex
+    """
+    dir_list = os.listdir(root_dir)
+    re_obj = re.compile(regex)
+    new_dir_list = [dir for dir in dir_list if re_obj.match(dir)]
+    return new_dir_list
+
+def ls_re(root_dir, regex):
+    """
+    Lists files in the dirs that match a reg ex
+    """
+    dir_list = [filename for filename in re.split('\\s+',cuisine.run('ls %s' % root_dir)) if filename]
+    re_obj = re.compile(regex)
+    new_dir_list = [dir for dir in dir_list if re_obj.match(dir)]
+    return new_dir_list
+
+
+def local_dir_delete(dirnname, recursive=False):
+    if recursive:
+        shutil.rmtree(dirnname)
+    else:
+        os.rmdir(dirnname)
+
+
+def local_dirs_delete(root_dir, regex):
+    for dir in local_ls_re(root_dir, regex):
+        local_dir_delete(path(root_dir).joinpath(dir))
+
 
 def local_copy_files_and_folders(from_dir, to_dir):
     if from_dir == to_dir:
