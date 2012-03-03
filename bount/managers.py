@@ -502,7 +502,7 @@ class DjangoManager:
         })
 
     @django_check_config
-    def upload_code(self):
+    def upload_code(self, update_submodules=True):
         if self.webserver:
             self.webserver.stop()
 
@@ -520,7 +520,7 @@ class DjangoManager:
         local_dir_ensure(temp_local_path)
         dir_ensure(temp_remote_path)
 
-        files = self.scm.local_archive(temp_local_path)
+        files = self.scm.local_archive(temp_local_path, include_submodules=update_submodules)
 
         for dir, file in files.iteritems():
             local_archive_path = temp_local_path.joinpath(file)

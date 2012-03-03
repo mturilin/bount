@@ -28,7 +28,7 @@ class Stack(object):
     def init_database(self):
         raise NotImplementedError('Method is not implemented')
 
-    def upload(self):
+    def upload(self, update_submodules=True):
         raise NotImplementedError('Method is not implemented')
 
     def configure_webserver(self):
@@ -237,8 +237,8 @@ class DalkStack(Stack):
     def restart_webserver(self):
         self.apache.restart()
 
-    def upload(self):
-        self.django.upload_code()
+    def upload(self, update_submodules=True):
+        self.django.upload_code(update_submodules)
 
     def configure_webserver(self):
         self.django.configure_wsgi()
@@ -377,7 +377,7 @@ after_update_code = Event()
 def update_code():
     before_update_code()
 
-    current_stack.upload()
+    current_stack.upload(update_submodules=False)
     current_stack.start_restart_webserver()
 
     after_update_code()
