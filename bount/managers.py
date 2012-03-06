@@ -210,8 +210,8 @@ class PostgresManager(DatabaseManager):
     def configure(self, enable_remote_access=False):
         if enable_remote_access:
             with cuisine_sudo():
-                cuisine.file_write(self.pg_hba_path(), self.process_pg_hba_conf())
-                cuisine.file_write(self.postgresql_conf_path(), self.process_postgresql_conf())
+                cuisine.file_write(self.pg_hba_path(), unix_eol(self.process_pg_hba_conf()))
+                cuisine.file_write(self.postgresql_conf_path(), unix_eol(self.process_postgresql_conf()))
 
 
     def database_exists(self):
