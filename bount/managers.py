@@ -145,10 +145,10 @@ class PostgresManager(DatabaseManager):
         self.db_backup_folder = "/tmp"
 
     def version(self):
-        version_info = run("psql --version")
+        version_info = cuisine.run("psql --version")
         version_line = version_info.split("\n")[0].strip()
-        assert len(version_line) > 7, "There's something wrong with Postgres version info: " + version_info
-        return version_line[-6:]
+#        assert len(version_line) > 7, "There's something wrong with Postgres version info: " + version_info
+        return re.search("\\d+\\.\\d+\\.\\d+", version_line).group(0)
 
     def short_version(self):
         return re.match("(\\d+\\.\\d+)", self.version()).group(1)
