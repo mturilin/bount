@@ -480,20 +480,20 @@ class DjangoManager:
         home_dir = remote_home()
         site_path_basename = path(self.remote_site_path).name
         with cuisine_sudo():
+            cuisine.dir_ensure(self.remote_site_path, recursive=True, mode='777')
             cuisine.dir_ensure("%s/tmp" % home_dir, mode='777')
             dir_delete("%(home_dir)s/tmp/%(site_path_basename)s" % locals())
             cuisine.run('mv %(site_dir)s %(home_dir)s/tmp' % {'site_dir': self.remote_site_path, 'home_dir': home_dir})
 
-            with cuisine_sudo():
-                clear_dir(self.remote_project_path)
+            clear_dir(self.remote_project_path)
 
 
-        #restore site dir
-        run('mv %(home_dir)s/tmp/%(site_dir_basename)s %(proj_path)s' % {
-            'site_dir_basename': site_path_basename,
-            'proj_path': self.remote_project_path,
-            'home_dir': home_dir
-        })
+            #restore site dir
+            cuisine.run('mv %(home_dir)s/tmp/%(site_dir_basename)s %(proj_path)s' % {
+                'site_dir_basename': site_path_basename,
+                'proj_path': self.remote_project_path,
+                'home_dir': home_dir
+            })
 
     @django_check_config
     def upload_code(self, update_submodules=True):
@@ -501,6 +501,10 @@ class DjangoManager:
             self.webserver.stop()
 
         self.before_upload_code()
+
+        # we need to ensure the directory is open for writing
+        with cuisine_sudo():
+            dir_attribs(self.remote_project_path, mode='777')
 
         self.clear_remote_project_path_save_site()
 
