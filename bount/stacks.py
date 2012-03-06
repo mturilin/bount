@@ -357,13 +357,13 @@ after_install = Event()
 def install():
     before_install()
 
-#    current_stack.setup_os_dependencies()
-#    current_stack.setup_python_dependencies()
+    current_stack.setup_os_dependencies()
+    current_stack.setup_python_dependencies()
     current_stack.setup_precompilers()
-#
-#    current_stack.init_database()
 
-#    current_stack.init_dirs()
+    current_stack.init_database()
+
+    current_stack.init_dirs()
     current_stack.upload()
     current_stack.configure_webserver()
     current_stack.start_restart_webserver()

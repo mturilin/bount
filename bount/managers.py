@@ -1,15 +1,14 @@
 from contextlib import contextmanager
 from functools import wraps
 import logging
-from bount import timestamp_str
 from fabric.context_managers import lcd, cd, prefix
 from fabric.operations import *
 from path import path
 import types
+from bount import timestamp_str
 from bount import cuisine
-from bount.cuisine import cuisine_sudo, file_attribs, dir_ensure, file_read, text_ensure_line, file_write, dir_attribs
-from bount.utils import local_file_delete, file_delete, python_egg_ensure, file_unzip, text_replace_line_re, sudo_pipeline, sym_link, clear_dir, dir_delete, remote_home, unix_eol
-from utils import local_dir_ensure, local_dirs_delete
+from bount.cuisine import cuisine_sudo, dir_ensure, file_read, text_ensure_line, file_write, dir_attribs
+from bount.utils import local_file_delete, file_delete, python_egg_ensure, file_unzip, text_replace_line_re, sudo_pipeline, clear_dir, dir_delete, remote_home, unix_eol, local_dir_ensure, local_dirs_delete
 
 __author__ = 'mturilin'
 
@@ -48,12 +47,11 @@ class UbuntuManager():
     def refresh_sources(self):
         sudo('apt-get update')
 
+
 @contextmanager
 def virtualenv(path, name):
     with prefix('source %s/%s/bin/activate' % (path, name)):
         yield
-
-
 
 
 class PythonManager():
@@ -65,7 +63,7 @@ class PythonManager():
         self.virtualenv_name = virtualenv_name
         self.virtualenv_path = virtualenv_path
 
-    def init(self, delete_if_exists, python_path = ""):
+    def init(self, delete_if_exists, python_path=""):
         if self.use_virtualenv:
             virtualenv_full_path = path(self.virtualenv_path).joinpath(self.virtualenv_name)
             if cuisine.dir_exists(virtualenv_full_path) and delete_if_exists:
@@ -303,7 +301,7 @@ class GitManager:
         if include_submodules:
             gitmodule_path = path(self.dir).joinpath('.gitmodules')
             if os.path.exists(gitmodule_path):
-                with open(gitmodule_path,'r') as file:
+                with open(gitmodule_path, 'r') as file:
                     lines = file.read().split('\n')
                     regex = re.compile('\\s*path\\s*=\\s*(.*)\\s*')
                     dirs += [regex.match(line).group(1) for line in lines if regex.match(line)]
@@ -317,8 +315,6 @@ class GitManager:
                 files[cur_dir] = basename
                 i += 1
         return files
-
-
 
 
 class HgManager:
@@ -348,6 +344,7 @@ def create_check_config(attributes):
         def init_dirs():
             ...
     """
+
     def check_config_decorator(func):
         def arg_defined(obj, attrs):
             for an_attr in attrs:
@@ -379,9 +376,7 @@ django_check_config = create_check_config([
     'static_url',
     'static_root',
     'server_admin',
-])
-
-
+    ])
 
 
 class DjangoManager:
@@ -400,10 +395,9 @@ class DjangoManager:
 
     def __init__(self, project_name, remote_project_path, local_project_path,
                  remote_site_path, src_root=None, settings_module='settings',
-                 use_virtualenv = True, virtualenv_path=None, virtualenv_name='ENV',
+                 use_virtualenv=True, virtualenv_path=None, virtualenv_name='ENV',
                  media_root=None, media_url=None, static_root=None, static_url=None,
                  server_admin=None, precompilers=None):
-
         logger.info("Creating DjangoManager")
 
         self.remote_project_path = remote_project_path
@@ -414,7 +408,6 @@ class DjangoManager:
         self.log_path = None
 
         self.scm = GitManager(self.project_local_path)
-
 
         self.env_path = "/usr/local"
         self.wsgi_handler_path = self.remote_site_path + "/wsgi_handler.py"
@@ -429,7 +422,7 @@ class DjangoManager:
         self.static_root = static_root if static_root else self.remote_site_path + "/static"
         self.src_root = src_root
         self.media_url = media_url
-        self.static_url =  static_url
+        self.static_url = static_url
 
         self.webserver = None
         self.python = None
@@ -439,7 +432,7 @@ class DjangoManager:
             self.precompilers = precompilers
             for precomp in precompilers:
                 precomp.root = self.remote_project_path
-        else: 
+        else:
             self.precompilers = list()
 
         logger.info(self.__dict__)
@@ -470,7 +463,8 @@ class DjangoManager:
         if self.use_virtualenv:
             activate_file_name = path(self.virtualenv_path).joinpath(self.virtualenv_name).joinpath('bin/activate')
             activate_text = file_read(activate_file_name)
-            new_activate_text = text_ensure_line(activate_text, 'export DJANGO_SETTINGS_MODULE="%s"' % self.settings_module)
+            new_activate_text = text_ensure_line(activate_text,
+                'export DJANGO_SETTINGS_MODULE="%s"' % self.settings_module)
 
             if new_activate_text != activate_text:
                 file_write(activate_file_name, unix_eol(new_activate_text))
@@ -533,13 +527,11 @@ class DjangoManager:
                 file_unzip(remote_archive_path, path(self.remote_project_path).joinpath(dir))
                 file_delete(remote_archive_path)
 
-
         cuisine.run("cd %s" % self.src_root)
         cuisine.run("pwd")
 
         with cuisine_sudo():
             cuisine.dir_attribs(self.remote_project_path, mode="777", recursive=True)
-
 
         for precomp in self.precompilers:
             precomp.compile()
@@ -679,15 +671,13 @@ class DjangoManager:
 
             context = {
                 'site_root': self.remote_site_path,
-                'python_version':self.python.get_short_version(),
-                'virtualenv_name':self.virtualenv_name
+                'python_version': self.python.get_short_version(),
+                'virtualenv_name': self.virtualenv_name
             }
-
 
             virtualenv_path = cuisine.text_template(virtualenv_template, context)
         else:
             virtualenv_path = ''
-
 
         if self.env_path:
             context = self.__dict__.copy()
