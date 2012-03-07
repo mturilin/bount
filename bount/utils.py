@@ -218,7 +218,7 @@ def local_dir_delete(dirnname, recursive=False):
 
 def local_dirs_delete(root_dir, regex):
     for dir in local_ls_re(root_dir, regex):
-        local_dir_delete(path(root_dir).joinpath(dir))
+        local_dir_delete(path(root_dir).joinpath(dir),True)
 
 
 def local_copy_files_and_folders(from_dir, to_dir):

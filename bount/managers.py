@@ -227,6 +227,17 @@ class PostgresManager(DatabaseManager):
         else:
             raise RuntimeError("Unknown PostgreSQL result: %s" % result)
 
+
+    @contextmanager
+    def pg_pass(self):
+        run("echo *:*:%s:%s:%s > ~/.pgpass" % (self.database_name, self.user, self.password))
+        run("chmod 0600 ~/.pgpass")
+
+        yield
+
+        run("rm ~/.pgpass")
+
+
     def backup_database(self, filename, zip=False, folder=None):
         folder = folder or self.db_backup_folder
 
@@ -235,19 +246,22 @@ class PostgresManager(DatabaseManager):
 
         file_full_path = "/".join([folder, filename])
 
-        run("echo *:*:%s:%s:%s > ~/.pgpass" % (self.database_name, self.user, self.password))
-        run("chmod 0600 ~/.pgpass")
-
-        sudo_pipeline(("pg_dump %s | gzip > %s" if zip else "pg_dump %s > %s")
-        % (self.database_name, file_full_path), user=self.superuser_login)
+        with self.pg_pass():
+            sudo_pipeline(("pg_dump -O -x %s | gzip > %s" if zip else "pg_dump %s > %s")
+            % (self.database_name, file_full_path), user=self.superuser_login)
 
     def init_database(self, init_sql_file, delete_if_exists=False, unzip=False):
         self.create_database(delete_if_exists)
         if unzip:
-            command = "cat %s | gunzip | psql %s"
+            command = "cat %s | gunzip | psql %s -w -U %s"
         else:
-            command = "cat %s | psql %s"
-        return sudo_pipeline(command % (init_sql_file, self.database_name), user=self.superuser_login)
+            command = "cat %s | psql %s -w -U %s"
+
+        with self.pg_pass():
+            run(command % (init_sql_file, self.database_name, self.user))
+
+        sudo_pipeline("echo GRANT ALL ON SCHEMA public TO %s | psql" % self.user, user=self.superuser_login)
+        sudo_pipeline("echo ALTER DATABASE %s OWNER TO %s | psql" % (self.database_name, self.user), user=self.superuser_login)
 
 
 class ApacheManagerForUbuntu():

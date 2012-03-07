@@ -1,5 +1,5 @@
 from axel import Event
-from fabric.context_managers import cd
+from fabric.context_managers import cd, lcd
 from fabric.operations import get, put
 import os
 import imp
@@ -50,6 +50,9 @@ class Stack(object):
         raise NotImplementedError('Method is not implemented')
 
     def download_media(self):
+        raise NotImplementedError('Method is not implemented')
+
+    def archive_local_media(self):
         raise NotImplementedError('Method is not implemented')
 
     def restore_latest_media(self):
@@ -149,7 +152,8 @@ class DalkStack(Stack):
         remote_site_path = path(remote_proj_path).joinpath('site').abspath()
 
         # MEDIA_PATH
-        media_rel_path = path(project_local_path).relpathto(settings.MEDIA_ROOT)
+        self.local_media_root = settings.MEDIA_ROOT
+        media_rel_path = path(project_local_path).relpathto(self.local_media_root)
         media_root = path(remote_proj_path).joinpath(media_rel_path)
         media_url = settings.MEDIA_URL
 
@@ -309,6 +313,14 @@ class DalkStack(Stack):
 
         with cuisine_sudo(): file_delete(media_dump_remote_path)
 
+    def archive_local_media(self):
+        local_dir_ensure(self.local_media_dump_dir)
+
+        media_dump_basename = "%s_media_%s.tar.gz" % (self.django.project_name, timestamp_str())
+        media_dump_local_path = self.local_media_dump_dir.joinpath(media_dump_basename)
+
+        with lcd(self.local_media_root): cuisine.local("tar -cvzf %s ." % media_dump_local_path)
+
 
     def latest_media_dump_basename(self):
         upload_file_list = [file for file in os.listdir(self.local_media_dump_dir)
@@ -426,4 +438,5 @@ def restore_latest_media():
     current_stack.restore_latest_media()
 
 
-
+def archive_local_media():
+    current_stack.archive_local_media()
