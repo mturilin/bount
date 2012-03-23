@@ -314,7 +314,7 @@ class DalkStack(Stack):
 
         media_dump_local_path = self.local_media_dump_dir.joinpath(media_dump_basename)
 
-        with cd(self.django.upload_path): cuisine.run("tar -cvzf %s ." % media_dump_remote_path)
+        with cd(self.django.media_root): cuisine.run("tar -cvzf %s ." % media_dump_remote_path)
         cuisine.file_attribs(media_dump_remote_path, '777')
 
         get(media_dump_remote_path, media_dump_local_path)
