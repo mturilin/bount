@@ -223,6 +223,7 @@ class DalkStack(Stack):
     def setup_python_dependencies(self):
         self.python.init(delete_if_exists=False, python_path=self.django.src_root)
         self.python.setup_dependencies()
+        self.django.configure_virtualenv()
 
     def setup_precompilers(self):
         super(DalkStack, self).setup_precompilers()
@@ -389,7 +390,7 @@ after_update_code = Event()
 def update_code():
     before_update_code()
 
-    current_stack.upload(update_submodules=False)
+    current_stack.upload()
     current_stack.start_restart_webserver()
 
     after_update_code()
@@ -407,6 +408,9 @@ def update():
     current_stack.start_restart_webserver()
 
     after_update()
+
+def update_python_dependencies():
+    current_stack.setup_python_dependencies()
 
 
 before_backup_database = Event()

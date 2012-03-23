@@ -17,7 +17,8 @@ class MacLocalPostgres9Manager(LocalDbManager):
     """
 
     def __init__(self, database_name, user, password, backup_path, dba_login="", dba_password="",
-                 host="localhost", port=5432, bin_path="/usr/local/Cellar/postgresql/9.1.2/bin", use_zip=True):
+                 host="localhost", port=5432, bin_path="/usr/local/Cellar/postgresql/9.1.2/bin", use_zip=True,
+                 backup_prefix=None):
         self.database_name = database_name
         self.user = user
         self.password = password
@@ -29,6 +30,7 @@ class MacLocalPostgres9Manager(LocalDbManager):
         self.backup_path = backup_path
         self.dba_login = dba_login
         self.dba_password = dba_password
+        self.backup_prefix = backup_prefix
 
     def psql_command(self, database='', query=None, as_dba=False):
         if as_dba:
@@ -93,9 +95,8 @@ class MacLocalPostgres9Manager(LocalDbManager):
         return run(command % (init_sql_file, self.psql_command_db()))
 
     def _create_db_backup_name(self):
-        return "%s_db_%s.sql.gz" %\
-               (self.database_name,
-                timestamp_str())
+        prefix = self.backup_prefix if self.backup_prefix else self.database_name
+        return "%s_db_%s_local.sql.gz" % (prefix, timestamp_str())
 
     def backup_database(self):
         filepath = path(self.backup_path).joinpath(self._create_db_backup_name())
@@ -112,10 +113,10 @@ class MacLocalPostgres9Manager(LocalDbManager):
     @classmethod
     def build_manager(cls, database_name, user, password, backup_path,
                       dba_login="", dba_password="",
-                      host="localhost", port=5432, bin_path="/usr/local/Cellar/postgresql/9.1.2/bin", use_zip=True):
-
+                      host="localhost", port=5432, bin_path="/usr/local/Cellar/postgresql/9.1.2/bin", use_zip=True,
+                      backup_prefix=None):
         bount.local.current_local_db_manager = MacLocalPostgres9Manager(database_name, user, password, backup_path,
-            dba_login, dba_password, host, port, bin_path, use_zip)
+            dba_login, dba_password, host, port, bin_path, use_zip, backup_prefix)
 
 
 

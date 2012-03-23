@@ -452,6 +452,17 @@ class DjangoManager:
         logger.info(self.__dict__)
 
 
+    def configure_virtualenv(self):
+        # configure virtualenv - we don't need it for WSGI, however, it's required for ./manage.py and django-admin.py
+        if self.use_virtualenv:
+            activate_file_name = path(self.virtualenv_path).joinpath(self.virtualenv_name).joinpath('bin/activate')
+            activate_text = file_read(activate_file_name)
+            new_activate_text = text_ensure_line(activate_text,
+                'export DJANGO_SETTINGS_MODULE="%s"' % self.settings_module)
+
+            if new_activate_text != activate_text:
+                file_write(activate_file_name, unix_eol(new_activate_text))
+
     @django_check_config
     def init(self):
         """
@@ -473,15 +484,7 @@ class DjangoManager:
             cuisine.dir_ensure(self.static_root, recursive=True,
                 owner=self.webserver.webserver_user, group=self.webserver.webserver_group)
 
-        # configure virtualenv - we don't need it for WSGI, however, it's required for ./manage.py and django-admin.py
-        if self.use_virtualenv:
-            activate_file_name = path(self.virtualenv_path).joinpath(self.virtualenv_name).joinpath('bin/activate')
-            activate_text = file_read(activate_file_name)
-            new_activate_text = text_ensure_line(activate_text,
-                'export DJANGO_SETTINGS_MODULE="%s"' % self.settings_module)
-
-            if new_activate_text != activate_text:
-                file_write(activate_file_name, unix_eol(new_activate_text))
+        self.configure_virtualenv()
 
 
     def before_upload_code(self):
