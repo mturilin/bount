@@ -8,9 +8,9 @@ from path import path
 import sys
 from bount import timestamp_str
 from bount import cuisine
-from bount.cuisine import dir_ensure, cuisine_sudo, dir_attribs, sudo
+from bount.cuisine import dir_ensure, cuisine_sudo, dir_attribs, sudo, run
 from bount.managers import UbuntuManager, PythonManager, ApacheManagerForUbuntu, DjangoManager, PostgresManager, ConfigurationException
-from bount.utils import local_dir_ensure, file_delete, remote_home
+from bount.utils import local_dir_ensure, file_delete, remote_home, dir_delete
 
 __author__ = 'mturilin'
 
@@ -62,6 +62,9 @@ class Stack(object):
         pass
 
     def collect_static(self):
+        raise NotImplementedError('Method is not implemented')
+
+    def media_restore_local_latest(self):
         raise NotImplementedError('Method is not implemented')
 
 #    def update_local_media(self):
@@ -354,6 +357,16 @@ class DalkStack(Stack):
 
         with cuisine_sudo(): file_delete(dump_remote_path)
 
+    def media_restore_local_latest(self):
+        dump_basename = self.latest_media_dump_basename()
+        dump_local_path = self.local_media_dump_dir.joinpath(dump_basename)
+
+        dir_delete(self.local_media_root)
+        dir_ensure(self.local_media_root)
+
+        with cd(self.local_media_root):
+            run("tar -xvzf %s" % dump_local_path)
+
 
     @classmethod
     def build_stack(cls, settings_path, dependencies_path, project_name, source_root,
@@ -423,6 +436,9 @@ def update_python_dependencies():
     current_stack.setup_python_dependencies()
 
 
+def start_restart_webserver():
+    current_stack.start_restart_webserver()
+
 before_backup_database = Event()
 after_backup_database = Event()
 
@@ -432,25 +448,34 @@ def backup_database():
     after_backup_database()
 
 
-def download_db_dump():
+def db_snapshot_remote():
     current_stack.download_db_dump()
 
 
-def restore_latest_db_dump():
+def db_restore_remote():
     current_stack.restore_latest_db_dump()
 
 
-def start_restart_webserver():
-    current_stack.start_restart_webserver()
-
-
-def download_media():
+def media_snapshot_remote():
     current_stack.download_media()
 
 
-def restore_latest_media():
+def media_restore_remote():
     current_stack.restore_latest_media()
 
 
-def archive_local_media():
+def media_snapshot_local():
     current_stack.archive_local_media()
+
+def media_restore_local():
+    current_stack.media_restore_local_latest()
+
+
+def remote_restore():
+    update()
+    media_restore_remote()
+    db_restore_remote()
+
+def remote_snapshot():
+    media_snapshot_remote()
+    db_snapshot_remote()

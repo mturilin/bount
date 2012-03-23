@@ -1,3 +1,5 @@
+from bount.stacks import media_restore_local, media_snapshot_local
+
 __author__ = 'mturilin'
 
 
@@ -17,8 +19,18 @@ current_local_db_manager = None
 
 
 
-def backup_local_database():
+def db_snapshot_local():
     current_local_db_manager.backup_database()
 
-def restore_local_latest_backup():
-    current_local_db_manager.backup_database()
+def db_restore_local(delete_if_exists=False):
+    current_local_db_manager.restore_database(delete_if_exists=delete_if_exists)
+
+
+def local_snapshot():
+    db_snapshot_local()
+    media_snapshot_local()
+
+
+def local_restore():
+    db_restore_local(delete_if_exists=True)
+    media_restore_local()

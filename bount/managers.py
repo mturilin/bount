@@ -183,12 +183,17 @@ class PostgresManager(DatabaseManager):
 
             # replaces "host all all 127.0.0.1/32 md5" type of lines
             # with "host all all 0.0.0.0/0 md5"
-            new_text, replaced = text_replace_line_re(
+            host_replaced, replaced = text_replace_line_re(
                 pg_hba,
                 "^host[\s\w\./]+$",
                 "host\tall\tall\t0.0.0.0/0\tmd5")
 
-        return new_text
+            local_replaced, replaced = text_replace_line_re(
+                host_replaced,
+                "^local\s+all\s+all.*$",
+                "local\tall\tall\t\tmd5")
+
+        return local_replaced
 
     def postgresql_conf_path(self):
         return '/etc/postgresql/%s/main/postgresql.conf' % self.short_version()
