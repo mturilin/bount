@@ -52,10 +52,10 @@ class LessPrecompiler(Precompiler):
     def setup(self):
         if not file_exists(self.lessc_path()):
             print("Installing Node and Less")
-            cuisine.sudo("sudo apt-get install python-software-properties")
+            cuisine.sudo("sudo apt-get --yes install python-software-properties")
             cuisine.sudo("sudo add-apt-repository ppa:chris-lea/node.js --yes")
-            cuisine.sudo("sudo apt-get update")
-            cuisine.sudo("sudo apt-get install nodejs")
+            cuisine.sudo("sudo apt-get --yes update")
+            cuisine.sudo("sudo apt-get --yes install nodejs")
 
             cuisine.run("curl http://npmjs.org/install.sh | sudo sh")
 
@@ -74,13 +74,17 @@ class LessPrecompiler(Precompiler):
         super(LessPrecompiler, self).compile()
         abs_dir_from = self.abs_dir_from()
         abs_dir_to = self.abs_dir_to()
+
+        with cuisine.cuisine_sudo():
+            dir_ensure(abs_dir_to, mode='777', recursive=True)
+
         for a_file in ls_re(abs_dir_from, '.*\\.less'):
             cuisine.sudo('%(lessc_path)s %(dir_from)s/%(basename)s.less %(dir_to)s/%(basename)s.css' % \
              {
                  'lessc_path': self.lessc_path(),
                  'dir_from': abs_dir_from,
                  'dir_to': abs_dir_to,
-                 'basename': a_file.rstrip('.less')
+                 'basename': a_file[:-5]
              })
 
 

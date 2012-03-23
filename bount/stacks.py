@@ -61,6 +61,9 @@ class Stack(object):
     def setup_precompilers(self):
         pass
 
+    def collect_static(self):
+        raise NotImplementedError('Method is not implemented')
+
 #    def update_local_media(self):
 #        raise NotImplementedError('Method is not implemented')
 
@@ -105,7 +108,7 @@ class DalkStack(Stack):
 
     def __init__(self, settings_module, dependencies_path, project_name, source_root, use_virtualenv,
                  local_backup_dir='backup', precompilers=None):
-        self.precompilers = precompilers if precompilers else []
+        self.precompilers = precompilers or []
 
         self.ubuntu = UbuntuManager()
         self.ubuntu.dependencies = [
@@ -128,7 +131,7 @@ class DalkStack(Stack):
             "python-psycopg2"
         ]
 
-        for precomp in precompilers:
+        for precomp in self.precompilers:
             self.ubuntu.dependencies += precomp.get_os_dependencies()
 
         self.apache = ApacheManagerForUbuntu()
@@ -210,7 +213,7 @@ class DalkStack(Stack):
                 'south', ],
             use_virtualenv, remote_site_path)
 
-        for precomp in precompilers:
+        for precomp in self.precompilers:
             self.python.dependencies += precomp.get_python_dependencies()
 
         self.django.python = self.python
@@ -244,6 +247,10 @@ class DalkStack(Stack):
 
     def upload(self, update_submodules=True):
         self.django.upload_code(update_submodules)
+
+    def collect_static(self):
+        self.django.collect_static()
+
 
     def configure_webserver(self):
         self.django.configure_wsgi()
@@ -378,6 +385,8 @@ def install():
 
     current_stack.init_dirs()
     current_stack.upload()
+    current_stack.migrate_data()
+    current_stack.collect_static()
     current_stack.configure_webserver()
     current_stack.start_restart_webserver()
 
@@ -405,6 +414,7 @@ def update():
     backup_database()
     current_stack.upload()
     current_stack.migrate_data()
+    current_stack.collect_static()
     current_stack.start_restart_webserver()
 
     after_update()
