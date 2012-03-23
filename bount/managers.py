@@ -542,7 +542,9 @@ class DjangoManager:
 
             #unzip file
             with cuisine_sudo():
-                file_unzip(remote_archive_path, path(self.remote_project_path).joinpath(dir))
+                extdir = path(self.remote_project_path).joinpath(dir).abspath()
+                dir_ensure(extdir, recursive=True, mode='777')
+                file_unzip(remote_archive_path, extdir)
                 file_delete(remote_archive_path)
 
         cuisine.run("cd %s" % self.src_root)
@@ -554,8 +556,6 @@ class DjangoManager:
         for precomp in self.precompilers:
             precomp.compile()
 
-        self.manage("collectstatic --noinput")
-
         # clear old archives
         local_dirs_delete(self.project_local_path, '%s%s.*' % (temp_dir_prefix, self.project_name))
 
@@ -564,6 +564,11 @@ class DjangoManager:
 
         if self.webserver:
             self.webserver.start()
+
+    @django_check_config
+    def collect_static(self):
+        self.manage("collectstatic --noinput")
+
 
     @django_check_config
     def migrate_data(self):
