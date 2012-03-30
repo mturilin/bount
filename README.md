@@ -84,7 +84,7 @@ The ususal use cases include:
  
 ## Setup
 
-### From Source
+### From the source
 Normal mode (you can't modify bount's sources):
 
 	git clone git://github.com/mturilin/bount.git
@@ -95,7 +95,11 @@ Developer mode:
 	git clone git://github.com/mturilin/bount.git
 	python setup.py develop
 
-Everything works under virtualenv.
+### Using pip
+
+Use the following command to install to site-packages:
+
+	pip install git+git://github.com/mturilin/bount.git
 
 ## Configuration
 
