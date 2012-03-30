@@ -1,4 +1,4 @@
-# Bount Developer's Guide
+# Django Deployment Made Easy
 
 Django is a beutilful web development framework and it takes 10 minutes to start your first Django application. However, to deploy the application to a clean Linux image could take more than an hour. Moreover, code update and data backup are usually manual. Also, if you didn't work on this particular project for a few weeks, it could be hard to remember all directory names and passwords. How could we make deployment and managing project data easier?
 
