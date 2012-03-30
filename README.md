@@ -24,7 +24,7 @@ Here's an example of project configuration:
 		dependencies_path = PROJECT_ROOT.joinpath ('REQUIREMENTS'),
 		project_name = 'my_awesome_app',
 		source_root = PROJECT_ROOT.joinpath ('src'),
-		precompilers=[LessPrecompiler ('less', 'compiled /css-compiled'),])
+		precompilers=[LessPrecompiler ('less', 'compiled/css-compiled'),])
 
 ## Use cases
 The ususal use cases include:
@@ -108,7 +108,7 @@ What you need to always specify fabfile.py:
 Example configuration DalkStack:
 
 	precompilers = [
-		LessPrecompiler ('less', 'compiled /css-compiled'),
+		LessPrecompiler ('less', 'compiled/css-compiled'),
 	]
 
 
@@ -136,7 +136,7 @@ Installation:
 
 	brew update
 	brew install postgresql
-	initdb / usr / local / var / postgres
+	initdb /usr/local/var/postgres
 
 Fix installation for Mac OS Lion (otherwise will not work the command line):
 
@@ -144,7 +144,7 @@ Fix installation for Mac OS Lion (otherwise will not work the command line):
 
 Configure PostgreSQL data directory:
 
-	echo "export PGDATA = / usr / local / var / postgres" >>. profile
+	echo "export PGDATA=/usr/local/var/postgres" >>. profile
 
 Check the status of the service:
 
@@ -165,14 +165,14 @@ Bount uses a fabric to access servers. For each of the servers needed to determi
 	def test2 ():
 		env.hosts = [r "test2.getccna.ru"]
 		env.user = "username"
-		env.key_filename = [os.path.expanduser ('~ / .ssh / id_rsa')]
+		env.key_filename = [os.path.expanduser ('~/.ssh/id_rsa')]
 
 For a local server, you usually need the following:
 
 	def localhost ():
 		env.hosts = [r "localhost"]
 		env.user = getpass.getuser ()
-		env.key_filename = [os.path.expanduser ('~ / .ssh / id_rsa')]
+		env.key_filename = [os.path.expanduser ('~/.ssh/id_rsa')]
 
 In order to access the local machine you need to enable SSH (tested on mac and Linux).
 
@@ -223,7 +223,7 @@ Restoring db dump often leads to errors. Most of the errors happen because of de
 
 ## Restore the media files
 
-Predvolagaet system that dumps are in the database directory backup / media_dump.
+Predvolagaet system that dumps are in the database directory backup/media_dump.
 
 The name of the dump media should be the following:
 
@@ -256,7 +256,7 @@ To save the dump from the local machine (to the developer's machine):
 
  	fab hostname db_snapshot_local
  
- The file will automatically appear in the backup / db_dump
+ The file will automatically appear in the backup/db_dump
  
 ## Save and download the media files
  
@@ -268,4 +268,4 @@ To save a dump of the media from the local machine (to the developer's machine):
 
  	fab hostname media_snapshot_local
  
- The file will automatically appear in the backup / media_dump
+ The file will automatically appear in the backup/media_dump
