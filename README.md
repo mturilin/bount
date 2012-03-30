@@ -69,6 +69,18 @@ The ususal use cases include:
  	#restore media to a local machine
  	fab localhost media_restore_local
  
+ 	#backup database to a folder on a server
+ 	fab host backup_database
+ 
+ 	#update python dependencies on a remote machine
+ 	fab host update python_dependencies
+ 	
+ 	#restart apache (start if not started)
+ 	fab host start_restart_webserver
+ 	
+ 	#update code - no data migration, just a code
+ 	fab host update_code
+ 
 ## Setup
 
 ### From Source
