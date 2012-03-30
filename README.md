@@ -15,7 +15,7 @@ Bount defines a number of "stacks" (currently one). Each stack defines a stable 
 * PostgreSQL 8 or 9
 * Django 1.3.1 (should work fine with 1.4 as well)
 
-Bount makes all project deployment to be as easy as writing 5-10 lines of code once, and using simple command to perform 80% of project.
+Bount makes all project deployment to be as easy as writing 5-10 lines of code once, and using simple commands to perform most of the usual project deployment routine.
 
 Here's an example of project configuration:
 
