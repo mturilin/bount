@@ -1,4 +1,4 @@
-# Developer's Guide
+# Bount Developer's Guide
 
 Django is a beutilful web development framework and it takes 10 minutes to start your first Django application. However, to deploy the application to a clean Linux image could take more than an hour. Moreover, code update and data backup are usually manual and error prone, especially if you didn't work on this particular project for a few weeks. How could we make deployment and project lifecycle easier?
 
@@ -209,7 +209,7 @@ The following file will be restored:
 
 Restoring db dump often leads to errors. Most of the errors happen because of desynchronized version of the code and database. After loading a dump, the system automatically performs the migration of databases using the command **south migrate**, which can fail if, for example, the code is older than the database.
 
-## Restore the media dump
+## Restore the media files
 
 Predvolagaet system that dumps are in the database directory backup / media_dump.
 
