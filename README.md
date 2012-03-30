@@ -1,10 +1,11 @@
 # Django Deployments Made Easy
 
-Django is a beutilful web development framework and it takes 10 minutes to start your first Django application. However, to deploy the application to a clean Linux image could take more than an hour. Moreover, code update and data backup are usually manual. Also, if you didn't work on this particular project for a few weeks, it could be hard to remember all directory names and passwords. How could we make deployment and managing project data easier?
+Django is a great web development framework. It takes 10 minutes to start your first Django application. However, to deploy the application to a clean Linux image could take more than an hour. Moreover, code update and data backup are usually manual. Also, if you didn't work on this particular project for a few weeks, it could be hard to remember all directory names and passwords. How could we make deployment and managing project data easier?
 
 Here enters the Bount, a simple Django deployment and lifecycle management tool based on the following technogoies:
 
 * fabric
+* cuisine (I include a fork version of original cuisine)
 * virtualenv
 * south
 
