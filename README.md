@@ -178,7 +178,16 @@ In order to access the local machine you need to enable SSH (tested on mac and L
 
 ## Install the server
 
-To set the project on a clean server should execute [* 1]:
+What is "clean server"?
+
+It's a new image of Ubuntu 11.10. The easiest ways to obtain one is to:
+
+1. [Download](http://www.ubuntu.com/download/server/download) and install yourself
+2. Use Amazon EC2
+
+![Chossing Ubuntu 11.10 from EC2](https://img.skitch.com/20120330-k4pbcr14u14h3menb2p53na9x4.jpg) 
+
+To set the project on a clean server:
 
 	fab hostname install
 
