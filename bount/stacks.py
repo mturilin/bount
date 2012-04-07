@@ -381,6 +381,8 @@ class DalkStack(Stack):
             print("S3 backup script disabled")
 
     def enable_backup(self, period=None):
+        self.disable_backup()
+
         db_backup_script = self.database.create_backup_script()
         media_backup_script = self.django.create_backup_script()
         
@@ -394,11 +396,12 @@ class DalkStack(Stack):
 
             backup_script_remote_path = "/usr/local/bin/getccnaru_backup_to_s3"
 
-            cuisine.file_write(backup_script_remote_path, db_backup_script)
-            cuisine.file_append(backup_script_remote_path, media_backup_script, mode='+x')
+            cuisine.file_write(backup_script_remote_path, db_backup_script, mode='+x')
+            cuisine.file_append(backup_script_remote_path, '\n')
+            cuisine.file_append(backup_script_remote_path, media_backup_script)
 
             if period is not None:
-                cuisine.file_write('/etc/cron.d/getccnaru_backup', '%s /usr/local/bin/getccnaru_backup_to_s3 > /var/log/getccnaru_backup_to_s3.log' % period)
+                cuisine.file_write('/etc/cron.d/getccnaru_backup', '%s /usr/local/bin/getccnaru_backup_to_s3 >> /var/log/getccnaru_backup_to_s3.log' % period)
             
             print("S3 backup script enabled")
 

@@ -761,10 +761,10 @@ class DjangoManager:
 
         tmpl = cuisine.text_strip_margin(
             """
-            |file_full_path="$folder/$project_name`date +%s`.tar.gz"
-            |tar -cvzf $file_full_path $media_root
-            |echo $file_full_path | env python /usr/local/bin/s3.py
-            |rm $file_full_path
+            |media_full_path="$folder/$project_name`date +%s`.tar.gz"
+            |tar -cvzf $media_full_path $media_root
+            |echo $media_full_path | env python /usr/local/bin/s3.py
+            |rm $media_full_path
             """)
 
         context = {
