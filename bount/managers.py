@@ -130,7 +130,7 @@ class DatabaseManager(object):
     def init_database(self, init_sql_file, delete_if_exists=False, unzip=False):
         pass
 
-    def create_backup_script(self):
+    def create_backup_script(self, folder=None, project_name=None):
         pass
 
 
@@ -272,15 +272,16 @@ class PostgresManager(DatabaseManager):
         sudo_pipeline("echo GRANT ALL ON SCHEMA public TO %s | psql" % self.user, user=self.superuser_login)
         sudo_pipeline("echo ALTER DATABASE %s OWNER TO %s | psql" % (self.database_name, self.user), user=self.superuser_login)
 
-    def create_backup_script(self, folder=None):
+    def create_backup_script(self, folder=None, project_name=None):
         folder = folder or '/tmp'
+        project_name = project_name or self.database_name
 
         tmpl = cuisine.text_strip_margin(
             """
-            |echo *:*:$database_name:$user:$password > ~/.pgpass
+            |echo *:*:${database_name}:${user}:${password} > ~/.pgpass
             |chmod 0600 ~/.pgpass
-            |file_full_path="$folder/$database_name`date +%s`.sql.gz"
-            |pg_dump -O -x $database_name | gzip > $file_full_path
+            |file_full_path="${folder}/${project_name}_db_`date +%s`.sql.gz"
+            |pg_dump -O -x ${database_name} | gzip > $file_full_path
             |echo $file_full_path | env python /usr/local/bin/s3.py
             |rm ~/.pgpass
             |rm $file_full_path
@@ -290,7 +291,8 @@ class PostgresManager(DatabaseManager):
             'database_name': self.database_name,
             'user': self.user,
             'password': self.password,
-            'folder': folder
+            'folder': folder,
+            'project_name': project_name,
         }
 
         return cuisine.text_template(tmpl, context)
@@ -761,8 +763,8 @@ class DjangoManager:
 
         tmpl = cuisine.text_strip_margin(
             """
-            |media_full_path="$folder/$project_name`date +%s`.tar.gz"
-            |tar -cvzf $media_full_path $media_root
+            |media_full_path="${folder}/${project_name}_media_`date +%s`.tar.gz"
+            |tar -cvzf $media_full_path ${media_root}
             |echo $media_full_path | env python /usr/local/bin/s3.py
             |rm $media_full_path
             """)
