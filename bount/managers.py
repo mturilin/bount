@@ -416,6 +416,7 @@ class DjangoManager:
                  remote_site_path, src_root=None, settings_module='settings',
                  use_virtualenv=True, virtualenv_path=None, virtualenv_name='ENV',
                  media_root=None, media_url=None, static_root=None, static_url=None,
+                 static_dirs=None,
                  server_admin=None, precompilers=None):
         logger.info("Creating DjangoManager")
 
@@ -442,6 +443,8 @@ class DjangoManager:
         self.src_root = src_root
         self.media_url = media_url
         self.static_url = static_url
+
+        self.static_dirs = static_dirs or []
 
         self.webserver = None
         self.python = None
@@ -727,6 +730,8 @@ class DjangoManager:
 
     @django_check_config
     def collect_static(self):
+        for dir in self.static_dirs:
+            dir_ensure(dir, recursive=True, mode='777')
         self.manage("collectstatic --noinput")
 
 

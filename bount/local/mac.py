@@ -74,7 +74,7 @@ class MacLocalPostgres9Manager(LocalDbManager):
                 return
 
         run("echo \"CREATE DATABASE %s WITH OWNER %s  ENCODING 'UNICODE'\" | %s" % (
-            self.database_name, self.user, self.psql_command()))
+            self.database_name, self.dba_login, self.psql_command('template1')))
 
         print("Database was created")
 

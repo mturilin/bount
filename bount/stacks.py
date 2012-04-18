@@ -83,6 +83,11 @@ def get_setting_from_list(settings_list, property):
             return getattr(setting_module, property)
 
 
+def rebase_path(target_path, old_root, newroot):
+    relpath = path(old_root).relpathto(target_path)
+    return path(newroot).joinpath(relpath)
+
+
 class DalkStack(Stack):
     """
     Stack supports:
@@ -159,15 +164,15 @@ class DalkStack(Stack):
 
         # MEDIA_PATH
         self.local_media_root = settings.MEDIA_ROOT
-        media_rel_path = path(project_local_path).relpathto(self.local_media_root)
-        media_root = path(remote_proj_path).joinpath(media_rel_path)
+        media_root = rebase_path(self.local_media_root, project_local_path, remote_proj_path)
         media_url = settings.MEDIA_URL
 
         # STATIC_PATH - warning, static path will be empty and contain only symlinks to STATICFILES_DIRS
         # and apps' static files
-        static_rel_path = path(project_local_path).relpathto(settings.STATIC_ROOT)
-        static_root = path(remote_proj_path).joinpath(static_rel_path)
+        static_root = rebase_path(settings.STATIC_ROOT, project_local_path,remote_proj_path)
         static_url = settings.STATIC_URL
+
+        static_file_dirs = [rebase_path(dir,project_local_path,remote_proj_path) for dir in settings.STATICFILES_DIRS ]
 
         try:
             server_admin = settings.ADMINS[0][1]
@@ -178,6 +183,7 @@ class DalkStack(Stack):
             remote_src_path, settings_module=settings_module,
             use_virtualenv=use_virtualenv, virtualenv_path=remote_site_path,
             media_root=media_root, media_url=media_url, static_root=static_root, static_url=static_url,
+            static_dirs=static_file_dirs,
             server_admin=server_admin, precompilers=precompilers)
 
         self.django.webserver = self.apache
