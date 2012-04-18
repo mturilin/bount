@@ -10,7 +10,7 @@ from bount import timestamp_str
 from bount import cuisine
 from bount.cuisine import dir_ensure, cuisine_sudo, dir_attribs, sudo, run
 from bount.managers import UbuntuManager, PythonManager, ApacheManagerForUbuntu, DjangoManager, PostgresManager, ConfigurationException
-from bount.utils import local_dir_ensure, file_delete, remote_home, dir_delete
+from bount.utils import local_dir_ensure, file_delete, remote_home, dir_delete, unix_eol, sym_link
 
 __author__ = 'mturilin'
 
@@ -66,6 +66,12 @@ class Stack(object):
 
     def media_restore_local_latest(self):
         raise NotImplementedError('Method is not implemented')
+
+    def disable_backup(self):
+        raise NotImplementedError('Method is not implemented')
+
+    def enable_backup(self, period=None):
+        raise NotImplementedError('Method is not implemented')        
 
 #    def update_local_media(self):
 #        raise NotImplementedError('Method is not implemented')
@@ -373,6 +379,38 @@ class DalkStack(Stack):
         with cd(self.local_media_root):
             run("tar -xvzf %s" % dump_local_path)
 
+    def disable_backup(self):
+        with cuisine_sudo():
+            cuisine.run('rm -f /usr/local/bin/%s_backup' % self.django.project_name)
+            cuisine.run('rm -f /usr/local/bin/s3.py')
+
+            print("S3 backup script disabled")
+
+    def enable_backup(self, period=None):
+        self.disable_backup()
+
+        db_backup_script = self.database.create_backup_script(project_name = self.django.project_name)
+        media_backup_script = self.django.create_backup_script()
+        
+        print(db_backup_script)
+        print(media_backup_script)
+
+        with cuisine_sudo():
+            from common import s3
+
+            sym_link(path(self.django.src_root).joinpath('common/s3.py'), '/usr/local/bin/s3.py')
+
+            backup_script_remote_path = "/usr/local/bin/%s_backup" % self.django.project_name
+
+            cuisine.file_write(backup_script_remote_path, db_backup_script, mode='+x')
+            cuisine.file_append(backup_script_remote_path, '\n')
+            cuisine.file_append(backup_script_remote_path, media_backup_script)
+
+            if period is not None:
+                cuisine.file_write('/etc/cron.d/%s' % self.django.project_name, '%s %s' % (period, backup_script_remote_path))
+            
+            print("S3 backup script enabled")
+
 
     @classmethod
     def build_stack(cls, settings_path, dependencies_path, project_name, source_root,
@@ -485,3 +523,39 @@ def remote_restore():
 def remote_snapshot():
     media_snapshot_remote()
     db_snapshot_remote()
+
+def disable_backup():
+    current_stack.disable_backup()
+
+def enable_backup(period):
+    period = period.strip()
+
+    def _is_day_of_month(period):
+        try:
+            day = int(period)
+        except ValueError:
+            return False
+        else:
+            return True if day >= 1 and day <= 29 else False
+
+    weekly = {
+        'sun': '59 23 * * sun',
+        'mon': '59 23 * * mon',
+        'tue': '59 23 * * tue',
+        'wed': '59 23 * * wed',
+        'thu': '59 23 * * thu',
+        'fri': '59 23 * * fri',
+        'sat': '59 23 * * sat',
+    }
+
+    cron_period = None
+
+    if period in weekly.keys():
+        cron_period = weekly[period]
+    elif _is_day_of_month(period):
+        cron_period = '59 23 %s * *' % period
+    else:
+        print('wrong period specified')
+        return
+
+    current_stack.enable_backup(cron_period)

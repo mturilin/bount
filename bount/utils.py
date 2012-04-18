@@ -257,7 +257,3 @@ def unix_eol(string):
 
 
 
-
-
-
-
