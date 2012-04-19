@@ -1,3 +1,4 @@
+import os
 from contextlib import contextmanager
 from functools import wraps
 import logging
@@ -127,6 +128,9 @@ class DatabaseManager(object):
         pass
 
     def init_database(self, init_sql_file, delete_if_exists=False, unzip=False):
+        pass
+
+    def create_backup_script(self, folder=None, project_name=None):
         pass
 
 
@@ -267,6 +271,31 @@ class PostgresManager(DatabaseManager):
 
         sudo_pipeline("echo GRANT ALL ON SCHEMA public TO %s | psql" % self.user, user=self.superuser_login)
         sudo_pipeline("echo ALTER DATABASE %s OWNER TO %s | psql" % (self.database_name, self.user), user=self.superuser_login)
+
+    def create_backup_script(self, folder=None, project_name=None):
+        folder = folder or '/tmp'
+        project_name = project_name or self.database_name
+
+        tmpl = cuisine.text_strip_margin(
+            """
+            |echo *:*:${database_name}:${user}:${password} > ~/.pgpass
+            |chmod 0600 ~/.pgpass
+            |file_full_path="${folder}/${project_name}_db_`date +%s`.sql.gz"
+            |pg_dump -O -x ${database_name} | gzip > $file_full_path
+            |echo $file_full_path | env python /usr/local/bin/s3.py
+            |rm ~/.pgpass
+            |rm $file_full_path
+            """)
+
+        context = {
+            'database_name': self.database_name,
+            'user': self.user,
+            'password': self.password,
+            'folder': folder,
+            'project_name': project_name,
+        }
+
+        return cuisine.text_template(tmpl, context)
 
 
 class ApacheManagerForUbuntu():
@@ -416,6 +445,7 @@ class DjangoManager:
                  remote_site_path, src_root=None, settings_module='settings',
                  use_virtualenv=True, virtualenv_path=None, virtualenv_name='ENV',
                  media_root=None, media_url=None, static_root=None, static_url=None,
+                 static_dirs=None,
                  server_admin=None, precompilers=None):
         logger.info("Creating DjangoManager")
 
@@ -442,6 +472,8 @@ class DjangoManager:
         self.src_root = src_root
         self.media_url = media_url
         self.static_url = static_url
+
+        self.static_dirs = static_dirs or []
 
         self.webserver = None
         self.python = None
@@ -727,12 +759,28 @@ class DjangoManager:
 
     @django_check_config
     def collect_static(self):
+        for dir in self.static_dirs:
+            dir_ensure(dir, recursive=True, mode='777')
         self.manage("collectstatic --noinput")
 
+    def create_backup_script(self, folder=None):
+        folder = folder or '/tmp'
 
+        tmpl = cuisine.text_strip_margin(
+            """
+            |media_full_path="${folder}/${project_name}_media_`date +%s`.tar.gz"
+            |tar -cvzf $media_full_path ${media_root}
+            |echo $media_full_path | env python /usr/local/bin/s3.py
+            |rm $media_full_path
+            """)
 
+        context = {
+            'project_name': self.project_name,
+            'media_root': self.media_root,
+            'folder': folder
+        }
 
-
+        return cuisine.text_template(tmpl, context)
 
 
 
