@@ -67,6 +67,15 @@ class Stack(object):
     def media_restore_local_latest(self):
         raise NotImplementedError('Method is not implemented')
 
+    def enable_debug(self):
+        raise NotImplementedError('Method is not implemented')
+
+    def disable_debug(self):
+        raise NotImplementedError('Method is not implemented')
+
+    def recreate_database(self):
+        raise NotImplementedError('Method is not implemented')
+
 #    def update_local_media(self):
 #        raise NotImplementedError('Method is not implemented')
 
@@ -369,14 +378,26 @@ class DalkStack(Stack):
 
 
     @classmethod
-    def build_stack(cls, settings_path, dependencies_path, project_name, source_root,
+    def build_stack(cls, settings_module, dependencies_path, project_name, source_root,
                     use_virtualenv=True, precompilers=None):
         global current_stack
 
-        current_stack = cls(settings_path, dependencies_path, project_name, source_root,
+        current_stack = cls(settings_module, dependencies_path, project_name, source_root,
             use_virtualenv, precompilers=precompilers)
 
         return current_stack
+
+    def enable_debug(self):
+        self.django.set_debug(True)
+        self.restart_webserver()
+
+    def disable_debug(self):
+        self.django.set_debug(False)
+        self.restart_webserver()
+
+    def recreate_database(self):
+        self.database.create_database(delete_if_exists=True)
+
 
 #    def update_local_media(self):
 #        zip_file = path(local_upload_dump_dir).joinpath(self.latest_uploaded_archive())
@@ -479,3 +500,15 @@ def remote_restore():
 def remote_snapshot():
     media_snapshot_remote()
     db_snapshot_remote()
+
+
+def enable_debug():
+    current_stack.enable_debug()
+
+def disable_debug():
+    current_stack.disable_debug()
+
+
+def recreate_database_remote():
+    current_stack.recreate_database()
+

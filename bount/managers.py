@@ -610,7 +610,7 @@ class DjangoManager:
     @django_check_config
     def set_debug(self, debug):
         with cuisine_sudo():
-            settings_file_path = path(self.src_root).joinpath(self.production_symlink)
+            settings_file_path = path(self.src_root).joinpath(self.settings_module.replace(".", "/") + ".py")
             settings_content = cuisine.file_read(settings_file_path)
 
             # replaces "#listen_addresses = 'localhost'	" type of lines
@@ -620,7 +620,7 @@ class DjangoManager:
                 "^DEBUG\s*=",
                 "DEBUG=%s" % debug)
 
-            return cuisine.file_write(settings_file_path, settings_content), replaced
+            return cuisine.file_write(settings_file_path, unix_eol(settings_content)), replaced
 
 
     @django_check_config

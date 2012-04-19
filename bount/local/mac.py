@@ -68,13 +68,13 @@ class MacLocalPostgres9Manager(LocalDbManager):
         if self.database_exists():
             if delete_if_exists:
                 self.drop_database_connections()
-                self.psql("DROP database %s" % self.database_name)
+                self.psql("DROP database %s" % self.database_name, "template1", as_dba=True)
             else:
                 print("Skipping database creation because it is already exists")
                 return
 
-        run("echo \"CREATE DATABASE %s WITH OWNER %s  ENCODING 'UNICODE'\" | %s" % (
-            self.database_name, self.user, self.psql_command()))
+        self.psql("echo \"CREATE DATABASE %s WITH OWNER %s  ENCODING 'UNICODE'\"" % (self.database_name, self.user),
+            "template1", as_dba=True)
 
         print("Database was created")
 
@@ -137,8 +137,8 @@ class MacLocalPostgres9Manager(LocalDbManager):
         bount.local.current_local_db_manager = MacLocalPostgres9Manager(database_name, user, password, backup_path,
             dba_login, dba_password, host, port, bin_path, use_zip, backup_prefix)
 
-    def psql(self, command):
-        return run("echo \"%s\" | %s" % (command, self.psql_command()))
+    def psql(self, command, database="", as_dba=False):
+        return run("echo \"%s\" | %s" % (command, self.psql_command(database, as_dba=as_dba)))
 
 
     def pg_ctl_path(self):
