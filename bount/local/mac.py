@@ -73,7 +73,7 @@ class MacLocalPostgres9Manager(LocalDbManager):
                 print("Skipping database creation because it is already exists")
                 return
 
-        self.psql("echo \"CREATE DATABASE %s WITH OWNER %s  ENCODING 'UNICODE'\"" % (self.database_name, self.user),
+        self.psql("CREATE DATABASE %s WITH OWNER %s  ENCODING 'UNICODE'" % (self.database_name, self.user),
             "template1", as_dba=True)
 
         print("Database was created")
