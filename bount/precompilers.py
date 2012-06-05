@@ -96,6 +96,13 @@ class CoffeePrecompiler(Precompiler):
 
     def compile(self):
         super(CoffeePrecompiler, self).compile()
-        cuisine.run('coffee %(dir_from)s/*.coffee %(dir_to)s/*.js' % self.__dict__)
+
+        abs_dir_from = self.abs_dir_from()
+        abs_dir_to = self.abs_dir_to()
+
+        with cuisine.cuisine_sudo():
+            dir_ensure(abs_dir_to, mode='777', recursive=True)
+        
+        cuisine.sudo('sudo coffee --compile --output %(abs_dir_to)s %(abs_dir_from)s' % {'abs_dir_from': abs_dir_from, 'abs_dir_to': abs_dir_to})
 
 
