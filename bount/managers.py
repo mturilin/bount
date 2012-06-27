@@ -48,6 +48,12 @@ class UbuntuManager():
     def refresh_sources(self):
         sudo('apt-get update')
 
+    def enable_ntpd(self):
+        sudo('service ntp start')
+
+    def disable_ntpd(self):
+        sudo('service ntp stop')
+
 
 @contextmanager
 def virtualenv(path, name):

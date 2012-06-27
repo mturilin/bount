@@ -140,7 +140,8 @@ class DalkStack(Stack):
             "python-imaging",
             "python-pip",
             "libpq-dev",
-            "python-psycopg2"
+            "python-psycopg2",
+            "ntp"
         ]
 
         for precomp in self.precompilers:
@@ -398,6 +399,12 @@ class DalkStack(Stack):
     def recreate_database(self):
         self.database.create_database(delete_if_exists=True)
 
+    def enable_ntpd(self):
+        self.ubuntu.enable_ntpd()
+
+    def disable_ntpd(self):
+        self.ubuntu.disable_ntpd()
+
 
 #    def update_local_media(self):
 #        zip_file = path(local_upload_dump_dir).joinpath(self.latest_uploaded_archive())
@@ -511,4 +518,10 @@ def disable_debug():
 
 def recreate_database_remote():
     current_stack.recreate_database()
+
+def enable_ntpd():
+    current_stack.enable_ntpd()
+
+def disable_ntpd():
+    current_stack.disable_ntpd()
 
