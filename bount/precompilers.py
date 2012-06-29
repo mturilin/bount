@@ -60,7 +60,7 @@ class LessPrecompiler(Precompiler):
             cuisine.run("curl http://npmjs.org/install.sh | sudo sh")
 
             with cd('~'):
-                cuisine.run("npm install less")
+                cuisine.run("sudo npm install less")
         else:
             print ("Less is already installed")
 
