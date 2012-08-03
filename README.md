@@ -50,7 +50,7 @@ The ususal use cases include:
 	fab host db_snapshot_remote
 	
 	#download user media files  from the remore machine
-	fab localhost media_snapshot_remote
+	fab host media_snapshot_remote
 	
 	#save local db dump (for upload or just to keep a copy)
 	fab localhost db_snapshot_local
