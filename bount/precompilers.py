@@ -57,7 +57,7 @@ class LessPrecompiler(Precompiler):
             cuisine.sudo("sudo apt-get --yes update")
             cuisine.sudo("sudo apt-get --yes install nodejs")
 
-            cuisine.run("curl http://npmjs.org/install.sh | sudo sh")
+            cuisine.run("curl https://npmjs.org/install.sh | sudo sh")
 
             with cd('~'):
                 cuisine.run("sudo npm install less")
