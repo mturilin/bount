@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/python
 import sys
 from path import path
 from shutil import copyfile
