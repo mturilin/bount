@@ -1,4 +1,3 @@
-from axel import Event
 from fabric.context_managers import cd, lcd
 from fabric.operations import get, put
 import os

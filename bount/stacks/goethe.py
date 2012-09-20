@@ -27,7 +27,7 @@ def get_setting_from_list(settings_list, property):
             return getattr(setting_module, property)
 
 
-class DalkStack(Stack):
+class GoetheStack(Stack):
     """
     Stack supports:
     - Ubuntu 11.10
@@ -313,16 +313,6 @@ class DalkStack(Stack):
             run("tar -xvzf %s" % dump_local_path)
 
 
-    @classmethod
-    def build_stack(cls, settings_module, dependencies_path, project_name, source_root,
-                    use_virtualenv=True, precompilers=None):
-        global current_stack
-
-        current_stack = cls(settings_module, dependencies_path, project_name, source_root,
-            use_virtualenv, precompilers=precompilers)
-
-        return current_stack
-
     def enable_debug(self):
         self.django.set_debug(True)
         self.restart_webserver()
@@ -340,11 +330,17 @@ class DalkStack(Stack):
     def disable_ntpd(self):
         self.ubuntu.disable_ntpd()
 
+    @classmethod
+    def build_stack(cls, settings_module, dependencies_path, project_name, source_root,
+                    use_virtualenv=True, precompilers=None):
+        global current_stack
 
-#    def update_local_media(self):
-#        zip_file = path(local_upload_dump_dir).joinpath(self.latest_uploaded_archive())
-#        print("the lastest upload copy found: %s" % zip_file)
-#        local_gunzip(zip_file, settings.MEDIA_ROOT, overwrite=True)
+        current_stack = cls(settings_module, dependencies_path, project_name, source_root,
+            use_virtualenv, precompilers=precompilers)
+
+        return current_stack
+
+
 
 
 
