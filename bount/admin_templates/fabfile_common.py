@@ -13,7 +13,7 @@ precompilers = [
 
 stack = DalkStack.build_stack(
     settings_module='settings_production',
-    dependencies_path=PROJECT_ROOT.joinpath('REQUIREMENTS'),
+    dependencies_path=PROJECT_ROOT.joinpath('requirements.txt'),
     project_name='getccna',
     source_root=PROJECT_ROOT.joinpath('src'),
     precompilers=precompilers)
