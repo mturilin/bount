@@ -4,3 +4,7 @@
 /site/
 /Bount.egg-info/
 /build/
+/Bount.egg-info
+/build
+/dist
+/site
