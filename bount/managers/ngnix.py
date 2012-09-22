@@ -1,16 +1,38 @@
-import os
-from contextlib import contextmanager
-from functools import wraps
+from bount.managers import WebServer
 import logging
-from fabric.context_managers import lcd, cd, prefix
 from fabric.operations import *
-from path import path
-import types
-from bount import timestamp_str
 from bount import cuisine
-from bount.cuisine import cuisine_sudo, dir_ensure, file_read, text_ensure_line, file_write, dir_attribs
-from bount.utils import local_file_delete, file_delete, python_egg_ensure, file_unzip, text_replace_line_re, sudo_pipeline, clear_dir, dir_delete, remote_home, unix_eol, local_dir_ensure, local_dirs_delete
+from bount.cuisine import cuisine_sudo
+from bount.utils import  clear_dir
 
 __author__ = 'mturilin'
 
 logger = logging.getLogger(__file__)
+
+
+class NginxManager(WebServer):
+    def __init__(self):
+        self.webserver_user = "www-data"
+        self.webserver_group = "www-data"
+
+    def is_running(self):
+        return "running" in run("service nginx status")
+
+    def restart(self):
+        sudo("service nginx restart")
+
+    def start(self):
+        sudo("service nginx start")
+
+    def stop(self):
+        sudo("service nginx stop")
+
+
+    def create_website(self, name, config, delete_other_sites=False):
+        if delete_other_sites:
+            with cuisine_sudo():
+                clear_dir('/etc/nginx/sites-enabled')
+
+        with cuisine_sudo():
+            cuisine.file_write('/etc/nginx/sites-enabled/%s' % name, config)
+            print("Nginx configured\n%s" % config)

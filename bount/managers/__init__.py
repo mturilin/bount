@@ -1,3 +1,5 @@
+import types
+
 __author__ = 'mturilin'
 
 
@@ -35,3 +37,26 @@ class DatabaseManager(object):
 
     def create_backup_script(self, folder=None, project_name=None):
         pass
+
+
+
+class Service(object):
+    def setup(self):
+        pass
+
+    def start(self):
+        raise NotImplementedError('Method is not implemented')
+
+    def stop(self):
+        raise NotImplementedError('Method is not implemented')
+
+    def restart(self):
+        raise NotImplementedError('Method is not implemented')
+
+    def is_running(self):
+        raise NotImplementedError('Method is not implemented')
+
+
+class WebServer(Service):
+    def create_website(self, name, config, delete_other_sites=False):
+        raise NotImplementedError('Method is not implemented')

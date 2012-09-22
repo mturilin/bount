@@ -1,20 +1,19 @@
-import os
+from bount.managers.git import GitManager
+from bount.managers.python import virtualenv
 from contextlib import contextmanager
 from functools import wraps
 import logging
-from fabric.context_managers import lcd, cd, prefix
+from fabric.context_managers import  cd
 from fabric.operations import *
 from path import path
-import types
 from bount import timestamp_str
 from bount import cuisine
 from bount.cuisine import cuisine_sudo, dir_ensure, file_read, text_ensure_line, file_write, dir_attribs
-from bount.utils import local_file_delete, file_delete, python_egg_ensure, file_unzip, text_replace_line_re, sudo_pipeline, clear_dir, dir_delete, remote_home, unix_eol, local_dir_ensure, local_dirs_delete
+from bount.utils import local_file_delete, file_delete, file_unzip, text_replace_line_re, clear_dir, dir_delete, remote_home, unix_eol, local_dir_ensure, local_dirs_delete
 
 __author__ = 'mturilin'
 
 logger = logging.getLogger(__file__)
-
 
 
 class ConfigurationException(StandardError):
@@ -65,7 +64,7 @@ django_check_config = create_check_config([
     'static_url',
     'static_root',
     'server_admin',
-    ])
+])
 
 
 class DjangoManager:
@@ -86,8 +85,7 @@ class DjangoManager:
                  remote_site_path, src_root=None, settings_module='settings',
                  use_virtualenv=True, virtualenv_path=None, virtualenv_name='ENV',
                  media_root=None, media_url=None, static_root=None, static_url=None,
-                 static_dirs=None,
-                 server_admin=None, precompilers=None):
+                 static_dirs=None, server_admin=None, precompilers=None, use_south=False):
         logger.info("Creating DjangoManager")
 
         self.remote_project_path = remote_project_path
@@ -129,11 +127,17 @@ class DjangoManager:
 
         logger.info(self.__dict__)
 
+        self.remote_host = env.host
+        self.use_south = use_south
+
+
+    def virtualenv_activate_path(self):
+        return path(self.virtualenv_path).joinpath(self.virtualenv_name).joinpath('bin/activate')
 
     def configure_virtualenv(self):
         # configure virtualenv - we don't need it for WSGI, however, it's required for ./manage.py and django-admin.py
         if self.use_virtualenv:
-            activate_file_name = path(self.virtualenv_path).joinpath(self.virtualenv_name).joinpath('bin/activate')
+            activate_file_name = self.virtualenv_activate_path()
             activate_text = file_read(activate_file_name)
             new_activate_text = text_ensure_line(activate_text,
                 'export DJANGO_SETTINGS_MODULE="%s"' % self.settings_module)
@@ -254,7 +258,8 @@ class DjangoManager:
     @django_check_config
     def migrate_data(self):
         self.manage("syncdb  --noinput")
-        self.manage("migrate")
+        if self.use_south:
+            self.manage("migrate")
 
 
     @django_check_config
@@ -269,7 +274,8 @@ class DjangoManager:
         with cd(self.src_root):
             with self.virtualenv_safe():
                 print ("admin command dir %s" % cuisine.run("pwd"))
-                cuisine.run("django-admin.py %s --pythonpath=%s" % (command, self.src_root))
+                cuisine.run(
+                    "django-admin.py %s --pythonpath=%s --settings=%s" % (command, self.src_root, self.settings_module))
 
 
     @contextmanager
@@ -294,38 +300,6 @@ class DjangoManager:
                 "DEBUG=%s" % debug)
 
             return cuisine.file_write(settings_file_path, unix_eol(settings_content)), replaced
-
-
-    @django_check_config
-    def create_apache_config(self):
-        apache_template = cuisine.text_strip_margin(
-            """
-            |<VirtualHost *:80>
-            |    ServerAdmin $server_admin
-            |
-            |    DocumentRoot $static_root
-            |
-            |    Alias $media_url $media_root/
-            |    <Directory $media_root>
-            |           Order deny,allow
-            |           Allow from all
-            |    </Directory>
-            |
-            |    Alias $static_url $static_root/
-            |    <Directory $static_root>
-            |           Order deny,allow
-            |           Allow from all
-            |    </Directory>
-            |
-            |    WSGIScriptAlias / $wsgi_handler_path
-            |
-            |    WSGIDaemonProcess $project_name
-            |    WSGIProcessGroup %{GLOBAL}
-            |
-            |</VirtualHost>
-            """)
-
-        return cuisine.text_template(apache_template, self.__dict__)
 
 
     @django_check_config
@@ -402,7 +376,7 @@ class DjangoManager:
     def collect_static(self):
         for dir in self.static_dirs:
             dir_ensure(dir, recursive=True, mode='777')
-        self.manage("collectstatic --noinput")
+        self.manage("collectstatic --noinput --clear")
 
     def create_backup_script(self, folder=None):
         folder = folder or '/tmp'

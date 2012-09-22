@@ -3,7 +3,7 @@ from fabric.operations import get, put
 import os
 import imp
 from bount.managers.apache import ApacheManagerForUbuntu
-from bount.managers.django import DjangoManager, ConfigurationException
+from bount.managers.django import DjangoManager, ConfigurationException, django_check_config
 from bount.managers.postgres import PostgresManager
 from bount.managers.python import PythonManager
 from bount.managers.sqlite import SqliteManager
@@ -25,6 +25,37 @@ def get_setting_from_list(settings_list, property):
     for setting_module in settings_list:
         if setting_module and hasattr(setting_module, property):
             return getattr(setting_module, property)
+
+APACHE_SITE_TEMPLATE = """
+<VirtualHost *:80>
+    ServerAdmin $server_admin
+
+    DocumentRoot $static_root
+
+    Alias $media_url $media_root/
+    <Directory $media_root>
+           Order deny,allow
+           Allow from all
+    </Directory>
+
+    Alias $static_url $static_root/
+    <Directory $static_root>
+           Order deny,allow
+           Allow from all
+    </Directory>
+
+    WSGIScriptAlias / $wsgi_handler_path
+
+    WSGIDaemonProcess $project_name
+    WSGIProcessGroup %{GLOBAL}
+
+</VirtualHost>"""
+
+
+class DjangoApacheManager(DjangoManager):
+    @django_check_config
+    def create_apache_config(self):
+        return cuisine.text_template(APACHE_SITE_TEMPLATE, self.__dict__)
 
 
 class DalkStack(Stack):
@@ -119,7 +150,7 @@ class DalkStack(Stack):
         except IndexError:
             server_admin = 'NOBODY'
 
-        self.django = DjangoManager(project_name, remote_proj_path, project_local_path, remote_site_path,
+        self.django = DjangoApacheManager(project_name, remote_proj_path, project_local_path, remote_site_path,
             remote_src_path, settings_module=settings_module,
             use_virtualenv=use_virtualenv, virtualenv_path=remote_site_path,
             media_root=media_root, media_url=media_url, static_root=static_root, static_url=static_url,
@@ -193,6 +224,10 @@ class DalkStack(Stack):
     def restart_webserver(self):
         self.apache.restart()
 
+    def stop_webserver(self):
+        self.apache.stop()
+
+
     def upload(self, update_submodules=True):
         self.django.upload_code(update_submodules)
 
@@ -202,11 +237,11 @@ class DalkStack(Stack):
 
     def configure_webserver(self):
         self.django.configure_wsgi()
-        self.apache.configure_webserver(self.django.project_name, self.django.create_apache_config(),
+        self.apache.create_website(self.django.project_name, self.django.create_apache_config(),
             delete_other_sites=True)
         self.apache.start()
 
-    def start_restart_webserver(self):
+    def restart_webserver(self):
         self.apache.restart()
 
     def _create_db_backup_name(self):

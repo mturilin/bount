@@ -77,7 +77,7 @@ The ususal use cases include:
  	fab host update python_dependencies
  	
  	#restart apache (start if not started)
- 	fab host start_restart_webserver
+ 	fab host restart_webserver
  	
  	#update code - no data migration, just a code
  	fab host update_code

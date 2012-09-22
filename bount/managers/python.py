@@ -28,6 +28,20 @@ def virtualenv(path, name):
     with prefix('source %s/%s/bin/activate' % (path, name)):
         yield
 
+def package_in_dependencies(package, dependencies):
+    if package in dependencies:
+        return True
+
+    for dep in dependencies:
+        if isinstance(dep, types.ListType):
+            if dep[0] == package:
+                return True
+        else:
+            if dep.startsWith(package+"=="):
+                return True
+
+    return False
+
 
 class PythonManager():
     def __init__(self, req_file=None, dependencies=None, use_virtualenv=True,
@@ -36,11 +50,11 @@ class PythonManager():
         self.req_file = req_file
         self.use_virtualenv = use_virtualenv
         self.virtualenv_name = virtualenv_name
-        self.virtualenv_path = virtualenv_path
+        self.virtualenv_parent_path = virtualenv_path
 
     def init(self, delete_if_exists, python_path=""):
         if self.use_virtualenv:
-            virtualenv_full_path = path(self.virtualenv_path).joinpath(self.virtualenv_name)
+            virtualenv_full_path = path(self.virtualenv_parent_path).joinpath(self.virtualenv_name)
             if cuisine.dir_exists(virtualenv_full_path) and delete_if_exists:
                 dir_delete(virtualenv_full_path)
 
@@ -48,10 +62,10 @@ class PythonManager():
                 pip_install(['virtualenv'])
 
             with cuisine_sudo():
-                dir_ensure(self.virtualenv_path, recursive=True, mode=777)
-                dir_attribs(self.virtualenv_path, mode=777, recursive=True)
+                dir_ensure(self.virtualenv_parent_path, recursive=True, mode=777)
+                dir_attribs(self.virtualenv_parent_path, mode=777, recursive=True)
 
-            with cd(self.virtualenv_path):
+            with cd(self.virtualenv_parent_path):
                 run('VIRTUALENV_EXTRA_SEARCH_DIR="%s" && virtualenv %s' % (python_path, self.virtualenv_name))
 
 
@@ -63,7 +77,7 @@ class PythonManager():
                 file_dependencies = [str.split('==') for str in dep_str.split('\n') if str != '']
 
         if self.use_virtualenv:
-            with virtualenv(self.virtualenv_path, self.virtualenv_name):
+            with virtualenv(self.virtualenv_parent_path, self.virtualenv_name):
                 pip_install(self.dependencies)
                 pip_install(file_dependencies)
         else:
@@ -83,3 +97,6 @@ class PythonManager():
 
     def get_short_version(self):
         return self.get_version_pattern("Python\\s+(\\d+\\.\\d+).*")
+
+    def virtualenv_path(self):
+        return path(self.virtualenv_parent_path).joinpath(self.virtualenv_name)

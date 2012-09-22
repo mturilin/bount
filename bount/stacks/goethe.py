@@ -1,20 +1,24 @@
-__author__ = 'mturilin'
-
-
-from axel import Event
+#coding=utf-8
+import textwrap
+from bount.managers.django import DjangoManager, ConfigurationException, django_check_config
+from bount.managers.gunicorn import GunicornDjangoManager
+from bount.managers.ngnix import NginxManager
+from bount.managers.postgres import PostgresManager
+from bount.managers.python import PythonManager
+from bount.managers.sqlite import SqliteManager
+from bount.managers.ubuntu import UbuntuManager
 from fabric.context_managers import cd, lcd
 from fabric.operations import get, put
 import os
 import imp
 from bount.stacks import Stack
-from bount.managers import SqliteManager
 from path import path
 import sys
 from bount import timestamp_str
 from bount import cuisine
 from bount.cuisine import dir_ensure, cuisine_sudo, dir_attribs, sudo, run
-from bount.managers import UbuntuManager, PythonManager, ApacheManagerForUbuntu, DjangoManager, PostgresManager, ConfigurationException
 from bount.utils import local_dir_ensure, file_delete, remote_home, dir_delete
+from bount import stacks
 
 __author__ = 'mturilin'
 
@@ -27,13 +31,57 @@ def get_setting_from_list(settings_list, property):
             return getattr(setting_module, property)
 
 
+NGNIX_TEMPLATE = """
+server {
+    listen   80;
+    server_name %(remote_host)s;
+
+    root /path/to/test/hello;
+
+    # serve directly - analogous for static/staticfiles
+    location %(media_url)s {
+        # if asset versioning is used
+        alias %(media_root)s/;
+    }
+
+    location %(static_url)s {
+        # if asset versioning is used
+        alias %(static_root)s/;
+    }
+
+    location / {
+        proxy_pass_header Server;
+        proxy_set_header Host $http_host;
+        proxy_redirect off;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Scheme $scheme;
+        proxy_connect_timeout 10;
+        proxy_read_timeout 10;
+        proxy_pass http://localhost:8000/;
+    }
+    # what to serve if upstream is not available or crashes
+    error_page 500 502 503 504 /media/50x.html;
+}"""
+
+
+class DjangoNgnixGunicornManager(DjangoManager):
+    @django_check_config
+    def create_ngnix_config(self):
+        return NGNIX_TEMPLATE % self.__dict__
+
+GOETHE_DERSCR = """"=======================================================
+Welcome to Goethe stack!
+Goethe (ゲーテ, Gēte) is Yoshino Sōma's doll. It takes the form of a finger claw (on her left middle finger) and bracelet (on her right wrist) when sealed. To unseal Goethe, Yoshino strikes the two pieces together to create a spark, which releases him when she takes the fire created from the spark and creates an arc over her head, as a fire rages around the area. Goethe is a fire elemental, able to create and control flame. While mostly humanoid in appearance consisting of hardened magma and flames, it has no legs but fire acting as propulsion jets.
+======================================================="""
+GOETHE_DERSCR_WRAPPED = textwrap.fill(GOETHE_DERSCR, 60)
+
 class GoetheStack(Stack):
     """
     Stack supports:
-    - Ubuntu 11.10
-    - Apache 2
+    - Ubuntu 12.04 LTS - I plan to keep it this way until next LTS
+    - Nginx
     - Postgres 8
-    - Django 1.3
+    - Django 1.4
 
     Project contract:
     1. Fabric script should be run from the project root dir
@@ -51,17 +99,25 @@ class GoetheStack(Stack):
     django = None
     python = None
     database = None
-    apache = None
+    webserver = None
+    services = []
+
+
+    def local_project_to_remote(self, local_path):
+        rel_path = path(self.project_local_path).relpathto(local_path)
+        return path(self.remote_proj_path).joinpath(rel_path)
 
     def __init__(self, settings_module, dependencies_path, project_name, source_root, use_virtualenv,
-                 local_backup_dir='backup', precompilers=None):
+                 local_backup_dir='backup', precompilers=None, number_of_django_workers=1, number_of_ngnix_workers=2,
+                 environment=None):
+        print GOETHE_DERSCR_WRAPPED
+        print "Added environment:", repr(environment)
+
         self.precompilers = precompilers or []
 
         self.ubuntu = UbuntuManager()
         self.ubuntu.dependencies = [
             "postgresql",
-            "apache2",
-            "libapache2-mod-wsgi",
             "unzip",
             "python",
             "python-setuptools",
@@ -76,42 +132,42 @@ class GoetheStack(Stack):
             "python-pip",
             "libpq-dev",
             "python-psycopg2",
-            "ntp"
+            "ntp",
+            "nginx"
         ]
 
         for precomp in self.precompilers:
             self.ubuntu.dependencies += precomp.get_os_dependencies()
 
-        self.apache = ApacheManagerForUbuntu()
+        self.webserver = NginxManager()
+        self.services.append(self.webserver)
 
         # Django
-        project_local_path = path(os.getcwd()) # project root is current working dir
+        self.project_local_path = path(os.getcwd()) # project root is current working dir
 
         sys.path.append(source_root)
+        os.environ.update(environment)
         module = imp.find_module(settings_module)
         settings = imp.load_module(settings_module, *module)
 
-        remote_proj_path = "/usr/local/share/" + project_name
+        self.remote_proj_path = "/usr/local/share/" + project_name
 
         # SRC - a directory containing settings.py will be considered src path for the server
         # override if necessary
-        src_relative_path = path(project_local_path).relpathto(source_root)
-        remote_src_path = path(remote_proj_path).joinpath(src_relative_path)
+        remote_src_path = self.local_project_to_remote(source_root)
 
-        # remote site path is a directory containing wsgi handler. Also it's recommended to put there
-        #
-        remote_site_path = path(remote_proj_path).joinpath('site').abspath()
+        # remote site path is a directory containing all locally changes files, such as media and ENV
+        remote_site_path = path(self.remote_proj_path).joinpath('site').abspath()
 
         # MEDIA_PATH
         self.local_media_root = settings.MEDIA_ROOT
-        media_rel_path = path(project_local_path).relpathto(self.local_media_root)
-        media_root = path(remote_proj_path).joinpath(media_rel_path)
+        media_root = self.local_project_to_remote(self.local_media_root)
         media_url = settings.MEDIA_URL
 
         # STATIC_PATH - warning, static path will be empty and contain only symlinks to STATICFILES_DIRS
         # and apps' static files
-        static_rel_path = path(project_local_path).relpathto(settings.STATIC_ROOT)
-        static_root = path(remote_proj_path).joinpath(static_rel_path)
+        static_rel_path = path(self.project_local_path).relpathto(settings.STATIC_ROOT)
+        static_root = path(self.remote_proj_path).joinpath(static_rel_path)
         static_url = settings.STATIC_URL
 
         try:
@@ -119,17 +175,19 @@ class GoetheStack(Stack):
         except IndexError:
             server_admin = 'NOBODY'
 
-        self.django = DjangoManager(project_name, remote_proj_path, project_local_path, remote_site_path,
+        self.django = DjangoNgnixGunicornManager(project_name, self.remote_proj_path, self.project_local_path, remote_site_path,
             remote_src_path, settings_module=settings_module,
             use_virtualenv=use_virtualenv, virtualenv_path=remote_site_path,
             media_root=media_root, media_url=media_url, static_root=static_root, static_url=static_url,
-            server_admin=server_admin, precompilers=precompilers)
+            server_admin=server_admin, precompilers=precompilers, use_south=("south" in settings.INSTALLED_APPS))
 
-        self.django.webserver = self.apache
+        self.django.webserver = self.webserver
 
         # LOGGING_PATH
-        if hasattr(settings, 'LOGGING_PATH'):
-            self.django.log_path = settings.LOGGING_PATH
+        if hasattr(settings, 'LOGGING_PATH') and settings.LOGGING_PATH:
+            self.django.log_path = self.local_project_to_remote(settings.LOGGING_PATH)
+        else:
+            self.django.log_path = remote_site_path.joinpath("logs")
 
 
         # Postgres
@@ -149,22 +207,34 @@ class GoetheStack(Stack):
 
 
         # Temporary local paths - override if needed
-        self.site_local_path = path(project_local_path).joinpath('site')
-        self.local_backup_dir = path(project_local_path).joinpath(local_backup_dir)
+        self.site_local_path = path(self.project_local_path).joinpath('site')
+        self.local_backup_dir = path(self.project_local_path).joinpath(local_backup_dir)
         self.local_db_dump_dir = self.local_backup_dir.joinpath('db_dump')
         self.local_media_dump_dir = self.local_backup_dir.joinpath('media_dump')
 
 
         # Python manage
         self.python = PythonManager(dependencies_path,
-            [('django', '1.3.1'),
-             'south', ],
+            ['django',
+             'gunicorn'],
             use_virtualenv, remote_site_path)
 
         for precomp in self.precompilers:
             self.python.dependencies += precomp.get_python_dependencies()
 
         self.django.python = self.python
+
+        self.gunicorn = GunicornDjangoManager(
+            project_name + "_gunicorn",
+            self.webserver.webserver_user,
+            self.webserver.webserver_group,
+            number_of_django_workers,
+            self.python.virtualenv_path(),
+            self.remote_proj_path, self.django.src_root, self.django.log_path,
+            self.django.remote_site_path,
+            environment=environment)
+
+        self.services.append(self.gunicorn)
 
 
     def setup_os_dependencies(self):
@@ -177,7 +247,7 @@ class GoetheStack(Stack):
         self.django.configure_virtualenv()
 
     def setup_precompilers(self):
-        super(DalkStack, self).setup_precompilers()
+        super(GoetheStack, self).setup_precompilers()
         for precomp in self.precompilers:
             precomp.setup()
 
@@ -189,9 +259,13 @@ class GoetheStack(Stack):
 
     def init_dirs(self):
         self.django.init()
+        #dir_ensure(self.remote_log_path, mode='777', owner=self.webserver.webserver_user, group=self.webserver.webserver_group)
 
-    def restart_webserver(self):
-        self.apache.restart()
+
+    def start_webserver(self):
+        for service in self.services:
+            service.start()
+
 
     def upload(self, update_submodules=True):
         self.django.upload_code(update_submodules)
@@ -201,13 +275,23 @@ class GoetheStack(Stack):
 
 
     def configure_webserver(self):
+        self.stop_webserver()
         self.django.configure_wsgi()
-        self.apache.configure_webserver(self.django.project_name, self.django.create_apache_config(),
-            delete_other_sites=True)
-        self.apache.start()
+        self.webserver.create_website(self.django.project_name, self.django.create_ngnix_config())
 
-    def start_restart_webserver(self):
-        self.apache.restart()
+        for service in self.services:
+            service.setup()
+
+        self.start_webserver()
+
+    def restart_webserver(self):
+        for service in self.services:
+            service.restart()
+
+    def stop_webserver(self):
+        for service in self.services:
+            service.stop()
+
 
     def _create_db_backup_name(self):
         return "%s_db_%s.sql.gz" %\
@@ -332,13 +416,11 @@ class GoetheStack(Stack):
 
     @classmethod
     def build_stack(cls, settings_module, dependencies_path, project_name, source_root,
-                    use_virtualenv=True, precompilers=None):
-        global current_stack
+                    use_virtualenv=True, precompilers=None, environment=None):
+        stacks.current_stack = cls(settings_module, dependencies_path, project_name, source_root,
+            use_virtualenv, precompilers=precompilers, environment=environment)
 
-        current_stack = cls(settings_module, dependencies_path, project_name, source_root,
-            use_virtualenv, precompilers=precompilers)
-
-        return current_stack
+        return stacks.current_stack
 
 
 
