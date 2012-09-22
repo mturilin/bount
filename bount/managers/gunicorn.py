@@ -40,9 +40,9 @@ class GunicornDjangoManager(SupervisordService):
         self.site_path = site_path
 
     def setup(self):
-        dir_ensure(self.log_dir, True, '777')
-        dir_attribs(self.log_dir, mode='777')
-
+#        dir_ensure(self.log_dir, True, '777')
+#        dir_attribs(self.log_dir, mode='777')
+#
         with cuisine_sudo():
             supervisor_config = pystache.render(SUPERVISOR_TEMPLATE, self)
             self.create_service(supervisor_config)

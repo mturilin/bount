@@ -55,14 +55,13 @@ class TornadoManager(SupervisordService):
         self.script_path = script_path
 
     def setup(self):
-        dir_ensure(self.log_dir, True, '777')
-        dir_attribs(self.log_dir, mode='777')
-
         with cuisine_sudo():
             supervisor_config = pystache.render(SUPERVISOR_TEMPLATE, self)
             self.create_service(supervisor_config)
             print supervisor_config
 
+    def get_supervisorctl_service_name(self):
+        return super(TornadoManager, self).get_supervisorctl_service_name() + ":*"
 
 
 TORNADO_NGINX_TEMPLATE = """
@@ -83,6 +82,8 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Scheme $scheme;
         proxy_pass http://frontends;
+        tcp_nodelay on;
+        proxy_pass websockets;
     }
 }
 """

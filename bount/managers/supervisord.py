@@ -29,8 +29,11 @@ class SupervisordService(Service):
         self.service_name = service_name
         self.environment = environment or {}
 
+    def get_supervisorctl_service_name(self):
+        return self.service_name
+
     def service(self, action):
-        cuisine.sudo("supervisorctl %s %s" % (action, self.service_name))
+        cuisine.sudo("supervisorctl %s %s" % (action, self.get_supervisorctl_service_name()))
 
     def start(self):
         if not supervisord_is_running():
