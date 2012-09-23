@@ -22,6 +22,14 @@ def supervisord_is_running():
 def supervisord_update():
     cuisine.sudo("killall -s HUP supervisord")
 
+def supervisorctl(action, service_name):
+    return cuisine.sudo("supervisorctl %s %s" % (action, service_name))
+
+def check_status_is_running(status):
+    return "RUNNING" in status or "STARTING" in status
+
+
+
 
 class SupervisordService(Service):
 
@@ -33,19 +41,24 @@ class SupervisordService(Service):
         return self.service_name
 
     def service(self, action):
-        cuisine.sudo("supervisorctl %s %s" % (action, self.get_supervisorctl_service_name()))
+        return cuisine.sudo("supervisorctl %s %s" % (action, self.service_name))
 
     def start(self):
         if not supervisord_is_running():
             supervisord_start()
 
-        self.service("start")
+        if not self.is_running():
+            self.service("start")
 
     def stop(self):
         self.service("stop")
 
     def restart(self):
         self.service("restart")
+
+    def is_running(self):
+        return check_status_is_running(self.service("status"))
+
 
     def cold_restart(self):
         supervisord_restart()
@@ -60,3 +73,5 @@ class SupervisordService(Service):
         return ','.join(["%s='%s'" % pair for pair in self.environment.iteritems()])
 
     environment_str = property(build_environment_str)
+
+

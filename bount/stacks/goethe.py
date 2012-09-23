@@ -275,7 +275,6 @@ class GoetheStack(Stack):
 
 
     def configure_webserver(self):
-        self.stop_webserver()
         self.django.configure_wsgi()
         self.webserver.create_website(self.django.project_name, self.django.create_ngnix_config())
 

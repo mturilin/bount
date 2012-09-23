@@ -1,14 +1,12 @@
 import logging
-from bount.managers import Service
 from bount import cuisine
-from bount.cuisine import cuisine_sudo, dir_ensure, dir_attribs
-from bount.managers.supervisord import SupervisordService
+from bount.cuisine import cuisine_sudo
+from bount.managers.supervisord import SupervisordService, supervisorctl, check_status_is_running
 import pystache
 
 __author__ = 'mturilin'
 
 logger = logging.getLogger(__file__)
-
 
 SUPERVISOR_TEMPLATE = """
 [program:{{service_name}}]
@@ -54,6 +52,9 @@ class TornadoManager(SupervisordService):
         self.site_path = site_path
         self.script_path = script_path
 
+        self.process_names = ["%s:main-%d" % (self.service_name, port)
+                              for port in range(self.start_port, self.start_port+self.num_of_workers)]
+
     def setup(self):
         with cuisine_sudo():
             supervisor_config = pystache.render(SUPERVISOR_TEMPLATE, self)
@@ -61,7 +62,18 @@ class TornadoManager(SupervisordService):
             print supervisor_config
 
     def get_supervisorctl_service_name(self):
-        return super(TornadoManager, self).get_supervisorctl_service_name() + ":*"
+        return self.service_name + ":*"
+
+
+    def is_running(self):
+        is_running_list = [check_status_is_running(supervisorctl("status", process))
+                           for process in self.process_names]
+
+        if not all(x == is_running_list[0] for x in is_running_list):
+            raise RuntimeError("Conflicting statuses of the supervisors's services: %s" % self.service_name)
+
+        return is_running_list[0]
+
 
 
 TORNADO_NGINX_TEMPLATE = """
@@ -81,9 +93,8 @@ server {
         proxy_redirect off;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Scheme $scheme;
-        proxy_pass http://frontends;
+        proxy_pass frontends;
         tcp_nodelay on;
-        proxy_pass websockets;
     }
 }
 """
