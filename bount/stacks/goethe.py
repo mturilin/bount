@@ -225,6 +225,7 @@ class GoetheStack(Stack):
 
         self.django.python = self.python
 
+        environment["DJANGO_SETTINGS_MODULE"] = settings_module
         self.gunicorn = GunicornDjangoManager(
             project_name + "_gunicorn",
             self.webserver.webserver_user,
