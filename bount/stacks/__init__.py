@@ -1,4 +1,5 @@
 from functools import partial
+from fabric.context_managers import settings
 from fabric.state import env
 
 __author__ = 'mturilin'
@@ -160,7 +161,8 @@ before_stop_webserver = Event()
 after_stop_webserver = Event()
 def stop_webserver():
     before_stop_webserver()
-    get_stack().stop_webserver()
+    with settings(warn_only=True):
+        get_stack().stop_webserver()
     after_stop_webserver()
 
 before_backup_database = Event()
