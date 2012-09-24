@@ -133,7 +133,8 @@ class GoetheStack(Stack):
             "libpq-dev",
             "python-psycopg2",
             "ntp",
-            "nginx"
+            "nginx",
+            "supervisor"
         ]
 
         for precomp in self.precompilers:
