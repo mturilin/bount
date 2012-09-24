@@ -41,7 +41,7 @@ class SupervisordService(Service):
         return self.service_name
 
     def service(self, action):
-        return cuisine.sudo("supervisorctl %s %s" % (action, self.service_name))
+        return cuisine.sudo("supervisorctl %s %s" % (action, self.get_supervisorctl_service_name()))
 
     def start(self):
         if not supervisord_is_running():
@@ -57,7 +57,8 @@ class SupervisordService(Service):
         self.service("restart")
 
     def is_running(self):
-        return check_status_is_running(self.service("status"))
+        with fabric_settings(warn_only=True):
+            return check_status_is_running(self.service("status"))
 
 
     def cold_restart(self):

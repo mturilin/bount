@@ -121,10 +121,10 @@ def configure_webserver():
 before_update_code = Event()
 after_update_code = Event()
 
-def update_code():
+def update_code(update_submodules=True):
     before_update_code()
 
-    get_stack().upload()
+    get_stack().upload(update_submodules)
     get_stack().restart_webserver()
 
     after_update_code()
