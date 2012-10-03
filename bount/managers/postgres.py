@@ -1,24 +1,25 @@
 from contextlib import contextmanager
 import logging
+from bount.stacks.generic import BackupExecutionError
 from fabric.operations import *
-from bount import cuisine
+from bount import cuisine, timestamp_str
 from bount.cuisine import cuisine_sudo
-from bount.managers import DatabaseManager
-from bount.utils import  text_replace_line_re, sudo_pipeline, unix_eol
+from bount.managers import DatabaseManager, BackupManager
+from bount.utils import  text_replace_line_re, sudo_pipeline, unix_eol, ls_re
+from path import path
 
 __author__ = 'mturilin'
 
 logger = logging.getLogger(__file__)
 
 
-class PostgresManager(DatabaseManager):
+class PostgresManager(DatabaseManager, BackupManager):
     def __init__(self, database_name, user, password, superuser_login="postgres", host="localhost"):
         self.database_name = database_name
         self.user = user
         self.password = password
         self.superuser_login = superuser_login
         self.host = host
-        self.db_backup_folder = "/tmp"
 
     def version(self):
         version_info = cuisine.run("psql --version")
@@ -120,16 +121,7 @@ class PostgresManager(DatabaseManager):
 
 
     def backup_database(self, filename, zip=False, folder=None):
-        folder = folder or self.db_backup_folder
 
-        with cuisine.cuisine_sudo():
-            cuisine.dir_ensure(folder, recursive=True, mode="777")
-
-        file_full_path = "/".join([folder, filename])
-
-        with self.pg_pass():
-            sudo_pipeline(("pg_dump -O -x %s | gzip > %s" if zip else "pg_dump %s > %s")
-                          % (self.database_name, file_full_path), user=self.superuser_login)
 
     def init_database(self, init_sql_file, delete_if_exists=False, unzip=False):
         self.create_database(delete_if_exists)
@@ -145,7 +137,9 @@ class PostgresManager(DatabaseManager):
         sudo_pipeline("echo ALTER DATABASE %s OWNER TO %s | psql" % (self.database_name, self.user),
             user=self.superuser_login)
 
-    def create_backup_script(self, folder=None, project_name=None):
+    def create_backup_script(self):
+        folder=None
+        project_name=None
         folder = folder or '/tmp'
         project_name = project_name or self.database_name
 
@@ -153,7 +147,7 @@ class PostgresManager(DatabaseManager):
             """
             |echo *:*:${database_name}:${user}:${password} > ~/.pgpass
             |chmod 0600 ~/.pgpass
-            |file_full_path="${folder}/${project_name}_db_`date +%s`.sql.gz"
+            |file_full_path="${master_folder}/${project_name}_db_`date +%s`.sql.gz"
             |pg_dump -O -x ${database_name} | gzip > $file_full_path
             |echo $file_full_path | env python /usr/local/bin/s3.py
             |rm ~/.pgpass
@@ -164,9 +158,32 @@ class PostgresManager(DatabaseManager):
             'database_name': self.database_name,
             'user': self.user,
             'password': self.password,
-            'folder': folder,
+            'master_folder': folder,
             'project_name': project_name,
         }
 
         return cuisine.text_template(tmpl, context)
+
+    def backup(self, temp_folder):
+        dump_basename = "%s_postgres_%s.zip" % (self.database_name, timestamp_str())
+        file_path = path(temp_folder).joinpath(dump_basename)
+
+
+        with self.pg_pass():
+            sudo_pipeline(("pg_dump -O -x %s | gzip > %s" if zip else "pg_dump %s > %s")
+                          % (self.database_name, file_path), user=self.superuser_login)
+
+        return file_path
+
+    def restore(self, folder):
+        pattern = "%s_postgres_\d+_\d+\\.zip" % self.tag
+        files = ls_re(folder, pattern)
+
+        if len(files) == 0:
+            raise BackupExecutionError("File not found for the pattern %s" % pattern)
+        elif len(files) > 1:
+            raise BackupExecutionError("Multiple files conforms the pattern %s" % pattern)
+
+        file_path = path(folder).joinpath(files[0])
+        self.init_database(file_path, False, file_path.endsWith('zip'))
 

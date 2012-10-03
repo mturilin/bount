@@ -1,15 +1,17 @@
+from bount.managers import BackupManager
 from bount.managers.git import GitManager
 from bount.managers.python import virtualenv
 from contextlib import contextmanager
 from functools import wraps
 import logging
+from bount.stacks.generic import BackupExecutionError
 from fabric.context_managers import  cd
 from fabric.operations import *
 from path import path
 from bount import timestamp_str
 from bount import cuisine
 from bount.cuisine import cuisine_sudo, dir_ensure, file_read, text_ensure_line, file_write, dir_attribs
-from bount.utils import local_file_delete, file_delete, file_unzip, text_replace_line_re, clear_dir, dir_delete, remote_home, unix_eol, local_dir_ensure, local_dirs_delete
+from bount.utils import local_file_delete, file_delete, file_unzip, text_replace_line_re, clear_dir, dir_delete, remote_home, unix_eol, local_dir_ensure, local_dirs_delete, whoami, tar_folder, ls_re, untar_file
 
 __author__ = 'mturilin'
 
@@ -24,7 +26,7 @@ def create_check_config(attributes):
     """
     This decorator checks the method's self class to have all specified attributes defined and not null.
     To use the decoretor you need to create an instance first specifying the attributes:
-    django_check_config = create_check_config(['webserver','src_root','static_root','server_admin'])
+    django_check_config = create_check_config(['src_root','static_root','server_admin'])
 
     class DjangoManager:
 
@@ -56,7 +58,6 @@ def create_check_config(attributes):
     return check_config_decorator
 
 django_check_config = create_check_config([
-    'webserver',
     'src_root',
     'python',
     'media_url',
@@ -85,7 +86,9 @@ class DjangoManager:
                  remote_site_path, src_root=None, settings_module='settings',
                  use_virtualenv=True, virtualenv_path=None, virtualenv_name='ENV',
                  media_root=None, media_url=None, static_root=None, static_url=None,
-                 static_dirs=None, server_admin=None, precompilers=None, use_south=False):
+                 static_dirs=None, server_admin=None,
+                 user=None, group=None,
+                 precompilers=None, use_south=False):
         logger.info("Creating DjangoManager")
 
         self.remote_project_path = remote_project_path
@@ -114,7 +117,6 @@ class DjangoManager:
 
         self.static_dirs = static_dirs or []
 
-        self.webserver = None
         self.python = None
         self.server_admin = server_admin
 
@@ -129,6 +131,26 @@ class DjangoManager:
 
         self.remote_host = env.host
         self.use_south = use_south
+        self.__user = user
+        self.__group = group
+
+    def get_user(self):
+        if not self.__user:
+            logger.warn("Django: No user is set. Using whoami to get the current user on the remote host")
+            self.__user = whoami()
+
+        return self.__user
+
+
+    def get_group(self):
+        if self.__group:
+            return self.__group
+        else:
+            return self.user
+
+    user = property(get_user)
+    group = property(get_group)
+
 
 
     def virtualenv_activate_path(self):
@@ -152,19 +174,19 @@ class DjangoManager:
         """
         with cuisine_sudo():
             cuisine.dir_ensure(self.remote_project_path, recursive=True,
-                owner=self.webserver.webserver_user, group=self.webserver.webserver_group)
+                owner=self.user, group=self.group)
 
             cuisine.dir_ensure(self.remote_site_path, recursive=True,
-                owner=self.webserver.webserver_user, group=self.webserver.webserver_group)
+                owner=self.user, group=self.group)
 
             cuisine.dir_ensure(self.log_path, recursive=True,
-                owner=self.webserver.webserver_user, group=self.webserver.webserver_group)
+                owner=self.user, group=self.group)
 
             cuisine.dir_ensure(self.media_root, recursive=True,
-                owner=self.webserver.webserver_user, group=self.webserver.webserver_group)
+                owner=self.user, group=self.group)
 
             cuisine.dir_ensure(self.static_root, recursive=True,
-                owner=self.webserver.webserver_user, group=self.webserver.webserver_group)
+                owner=self.user, group=self.group)
 
         self.configure_virtualenv()
 
@@ -196,9 +218,6 @@ class DjangoManager:
 
     @django_check_config
     def upload_code(self, update_submodules=True):
-        if self.webserver:
-            self.webserver.stop()
-
         self.before_upload_code()
 
         # we need to ensure the directory is open for writing
@@ -247,8 +266,6 @@ class DjangoManager:
         ## upload ends here
         self.after_upload_code()
 
-        if self.webserver:
-            self.webserver.start()
 
     @django_check_config
     def collect_static(self):
@@ -383,7 +400,7 @@ class DjangoManager:
 
         tmpl = cuisine.text_strip_margin(
             """
-            |media_full_path="${folder}/${project_name}_media_`date +%s`.tar.gz"
+            |media_full_path="${master_folder}/${project_name}_media_`date +%s`.tar.gz"
             |tar -cvzf $media_full_path ${media_root}
             |echo $media_full_path | env python /usr/local/bin/s3.py
             |rm $media_full_path
@@ -392,11 +409,10 @@ class DjangoManager:
         context = {
             'project_name': self.project_name,
             'media_root': self.media_root,
-            'folder': folder
+            'master_folder': folder
         }
 
         return cuisine.text_template(tmpl, context)
-
 
 
 

@@ -1,5 +1,6 @@
 #coding=utf-8
 import textwrap
+from bount.managers import Service
 from bount.managers.django import DjangoManager, ConfigurationException, django_check_config
 from bount.managers.gunicorn import GunicornDjangoManager
 from bount.managers.ngnix import NginxManager
@@ -7,6 +8,7 @@ from bount.managers.postgres import PostgresManager
 from bount.managers.python import PythonManager
 from bount.managers.sqlite import SqliteManager
 from bount.managers.ubuntu import UbuntuManager
+from bount.stacks.generic import GenericStack
 from fabric.context_managers import cd, lcd
 from fabric.operations import get, put
 import os
@@ -17,7 +19,7 @@ import sys
 from bount import timestamp_str
 from bount import cuisine
 from bount.cuisine import dir_ensure, cuisine_sudo, dir_attribs, sudo, run
-from bount.utils import local_dir_ensure, file_delete, remote_home, dir_delete
+from bount.utils import local_dir_ensure, file_delete, remote_home, dir_delete, whoami
 from bount import stacks
 
 __author__ = 'mturilin'
@@ -64,10 +66,22 @@ server {
 }"""
 
 
-class DjangoNgnixGunicornManager(DjangoManager):
+class NginxDjangoManager(NginxManager):
+    def __init__(self, django_manager, number_of_workers=1):
+        super(NginxDjangoManager, self).__init__(number_of_workers)
+        self.django_manager = django_manager
+
     @django_check_config
     def create_ngnix_config(self):
-        return NGNIX_TEMPLATE % self.__dict__
+        return NGNIX_TEMPLATE % self.django_manager.__dict__
+
+    def setup(self):
+        super(NginxManager, self).setup()
+#        self.django_manager.configure_wsgi()
+        self.create_website(self.django_manager.project_name, self.django_manager.create_ngnix_config())
+
+
+
 
 GOETHE_DERSCR = """"=======================================================
 Welcome to Goethe stack!
@@ -75,13 +89,13 @@ Goethe (ゲーテ, Gēte) is Yoshino Sōma's doll. It takes the form of a finger
 ======================================================="""
 GOETHE_DERSCR_WRAPPED = textwrap.fill(GOETHE_DERSCR, 60)
 
-class GoetheStack(Stack):
+class GoetheStack(GenericStack):
     """
     Stack supports:
     - Ubuntu 12.04 LTS - I plan to keep it this way until next LTS
     - Nginx
     - Postgres 8
-    - Django 1.4
+    - Django 1.4.1
 
     Project contract:
     1. Fabric script should be run from the project root dir
@@ -103,17 +117,21 @@ class GoetheStack(Stack):
     services = []
 
 
+
+
     def local_project_to_remote(self, local_path):
         rel_path = path(self.project_local_path).relpathto(local_path)
         return path(self.remote_proj_path).joinpath(rel_path)
 
     def __init__(self, settings_module, dependencies_path, project_name, source_root, use_virtualenv,
                  local_backup_dir='backup', precompilers=None, number_of_django_workers=1, number_of_ngnix_workers=2,
+                 user= None, group=None,
                  environment=None):
         print GOETHE_DERSCR_WRAPPED
         print "Added environment:", repr(environment)
 
         self.precompilers = precompilers or []
+
 
         self.ubuntu = UbuntuManager()
         self.ubuntu.dependencies = [
@@ -139,9 +157,6 @@ class GoetheStack(Stack):
 
         for precomp in self.precompilers:
             self.ubuntu.dependencies += precomp.get_os_dependencies()
-
-        self.webserver = NginxManager()
-        self.services.append(self.webserver)
 
         # Django
         self.project_local_path = path(os.getcwd()) # project root is current working dir
@@ -176,13 +191,16 @@ class GoetheStack(Stack):
         except IndexError:
             server_admin = 'NOBODY'
 
-        self.django = DjangoNgnixGunicornManager(project_name, self.remote_proj_path, self.project_local_path, remote_site_path,
+        self.django = DjangoManager(project_name, self.remote_proj_path, self.project_local_path, remote_site_path,
             remote_src_path, settings_module=settings_module,
             use_virtualenv=use_virtualenv, virtualenv_path=remote_site_path,
             media_root=media_root, media_url=media_url, static_root=static_root, static_url=static_url,
             server_admin=server_admin, precompilers=precompilers, use_south=("south" in settings.INSTALLED_APPS))
 
-        self.django.webserver = self.webserver
+
+        self.webserver = NginxDjangoManager(self.django, number_of_ngnix_workers)
+        self.services.append(self.webserver)
+
 
         # LOGGING_PATH
         if hasattr(settings, 'LOGGING_PATH') and settings.LOGGING_PATH:
@@ -262,12 +280,7 @@ class GoetheStack(Stack):
 
     def init_dirs(self):
         self.django.init()
-        #dir_ensure(self.remote_log_path, mode='777', owner=self.webserver.webserver_user, group=self.webserver.webserver_group)
 
-
-    def start_webserver(self):
-        for service in self.services:
-            service.start()
 
 
     def upload(self, update_submodules=True):
@@ -276,11 +289,12 @@ class GoetheStack(Stack):
     def collect_static(self):
         self.django.collect_static()
 
+    def start_webserver(self):
+        for service in self.services:
+            service.start()
+
 
     def configure_webserver(self):
-        self.django.configure_wsgi()
-        self.webserver.create_website(self.django.project_name, self.django.create_ngnix_config())
-
         for service in self.services:
             service.setup()
 

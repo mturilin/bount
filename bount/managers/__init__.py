@@ -29,14 +29,9 @@ class DatabaseManager(object):
     def configure(self, enable_remote_access=False):
         pass
 
-    def backup_database(self, filename, zip=False, folder=None):
-        pass
-
     def init_database(self, init_sql_file, delete_if_exists=False, unzip=False):
         pass
 
-    def create_backup_script(self, folder=None, project_name=None):
-        pass
 
 
 
@@ -59,4 +54,70 @@ class Service(object):
 
 class WebServer(Service):
     def create_website(self, name, config, delete_other_sites=False):
+        raise NotImplementedError('Method is not implemented')
+
+
+class BackupManager(object):
+
+    def backup(self, temp_folder):
+        """
+        Backs up the data to a single file ready to store.
+        @param temp_folder: local master_folder to put the backup to
+        @return: backup file name
+        """
+        raise NotImplementedError('Method is not implemented')
+
+
+    def restore(self, folder):
+        """
+        Restore data from a file.
+        @param file_path: File with a backup
+        @return: None
+        """
+        raise NotImplementedError('Method is not implemented')
+
+    def create_backup_script(self):
+        """
+
+        @return: A shell script text to backup the resource. First argument is master_folder, second is the backup name.
+        """
+        raise NotImplementedError('Method is not implemented')
+
+    def get_name(self):
+        raise NotImplementedError('Method is not implemented')
+
+
+
+class BackupStorage(object):
+
+    def get(self, file_name, path_to):
+        """
+        Uploads master_folder to the storage
+        @param file_name: file name to get
+        @param path_to: where to put the file at the server
+        @return: None
+        """
+        raise NotImplementedError('Method is not implemented')
+
+    def list(self):
+        """
+        List all backups available at the storage.
+        @return: list of the remote master_folder names that could be used to download them
+        """
+        raise NotImplementedError('Method is not implemented')
+
+
+    def save(self, file):
+        """
+        Download master_folder from the storage to the local path.
+        @param file: path to the file to save
+        @return: None
+        """
+        raise NotImplementedError('Method is not implemented')
+
+    def save_script(self):
+        """
+
+        @return: Shell script code that upload the first argument to the storage.
+        """
         raise NotImplementedError('Method is not implemented')

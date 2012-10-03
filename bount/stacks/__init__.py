@@ -165,6 +165,15 @@ def stop_webserver():
         get_stack().stop_webserver()
     after_stop_webserver()
 
+
+def backup(destanation):
+    """
+
+    @return: backup_id of the backup created
+    """
+    get_stack().backup(destanation)
+
+
 before_backup_database = Event()
 after_backup_database = Event()
 

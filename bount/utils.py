@@ -249,10 +249,21 @@ def unix_eol(string):
     return string.replace('\r','')
 
 
+def whoami():
+    return cuisine.run("whoami")
 
 
+def tar_folder(folder, output_file_path=None, zip=True):
+    output_file_path = output_file_path or "%s.tar.gz" % path(folder).name()
+    zip_flag = 'z' if zip else ''
 
+    cuisine.run("tar -cv%sf %s %s" % (zip_flag, output_file_path, folder))
 
+    return output_file_path
+
+def untar_file(file_path, output_dir=None):
+    output_dir = output_dir or path(file_path).dirname()
+    return cuisine.run("tar -xvzf %s --directory=%s" % (file_path,output_dir))
 
 
 

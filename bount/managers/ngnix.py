@@ -18,9 +18,8 @@ NGINX_CONF_FILE_NAME = "/etc/nginx/nginx.conf"
 NGINX_TCP_SITES_DIR = "/etc/nginx/tcp-sites"
 
 class NginxManager(WebServer):
-    def __init__(self):
-        self.webserver_user = "www-data"
-        self.webserver_group = "www-data"
+    def __init__(self, number_or_workers=1):
+        self.number_or_workers = number_or_workers
 
     def is_running(self):
         return "running" in run("service nginx status")
