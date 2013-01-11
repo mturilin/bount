@@ -1,4 +1,5 @@
 from axel import Event
+from django.utils.importlib import import_module
 from fabric.context_managers import cd, lcd
 from fabric.operations import get, put
 import os
@@ -153,8 +154,7 @@ class DalkStack(Stack):
         project_local_path = path(os.getcwd()) # project root is current working dir
 
         sys.path.append(source_root)
-        module = imp.find_module(settings_module)
-        settings = imp.load_module(settings_module, *module)
+        settings = import_module(settings_module)
 
         remote_proj_path = "/usr/local/share/" + project_name
 
@@ -222,8 +222,7 @@ class DalkStack(Stack):
 
         # Python manage
         self.python = PythonManager(dependencies_path,
-            [('django', '1.3.1'),
-                'south', ],
+            [],
             use_virtualenv, remote_site_path)
 
         for precomp in self.precompilers:
