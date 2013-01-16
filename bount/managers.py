@@ -1,14 +1,15 @@
 import os
 from contextlib import contextmanager
 from functools import wraps
+from fabric import operations
 import logging
 from fabric.context_managers import lcd, cd, prefix
-from fabric.operations import *
 from path import path
+import re
 import types
 from bount import timestamp_str
 from bount import cuisine
-from bount.cuisine import cuisine_sudo, dir_ensure, file_read, text_ensure_line, file_write, dir_attribs, file_exists
+from bount.cuisine import cuisine_sudo, dir_ensure, file_read, text_ensure_line, file_write, dir_attribs, file_exists, sudo, run
 from bount.utils import local_file_delete, file_delete, python_egg_ensure, file_unzip, text_replace_line_re, sudo_pipeline, clear_dir, dir_delete, remote_home, unix_eol, local_dir_ensure, local_dirs_delete
 
 __author__ = 'mturilin'
@@ -86,13 +87,13 @@ class PythonManager():
             # make lib synlinks to install PIL correctly
             with cuisine_sudo():
                 if not file_exists("/usr/lib/libfreetype.so"):
-                    run("ln -s /usr/lib/x86_64-linux-gnu/libfreetype.so /usr/lib/")
+                    run("ln -sf /usr/lib/x86_64-linux-gnu/libfreetype.so /usr/lib/")
 
                 if not file_exists("/usr/lib/libz.so"):
-                    run("ln -s /usr/lib/x86_64-linux-gnu/libz.so /usr/lib/")
+                    run("ln -sf /usr/lib/x86_64-linux-gnu/libz.so /usr/lib/")
 
                 if not file_exists("/usr/lib/libjpeg.so"):
-                    run("ln -s /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/")
+                    run("ln -sf /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/")
 
             with cd(self.virtualenv_path):
                 run('VIRTUALENV_EXTRA_SEARCH_DIR="%s" && virtualenv %s' % (python_path, self.virtualenv_name))
@@ -241,7 +242,7 @@ class PostgresManager(DatabaseManager):
 
 
     def database_exists(self):
-        result = sudo(
+        result = operations.sudo(
             "psql template1 -c \"SELECT 1 AS result FROM pg_database WHERE datname='%s'\"; "
             % self.database_name,
             user=self.superuser_login)
@@ -376,7 +377,7 @@ class GitManager:
             cur_dur_full_path = path(self.dir).joinpath(cur_dir)
             with lcd(cur_dur_full_path):
                 basename = '%s_%d.zip' % (basename_prefix, i)
-                local("git archive %s --format zip --output %s" % ("HEAD", path(file_path).joinpath(basename)))
+                operations.local("git archive %s --format zip --output %s" % ("HEAD", path(file_path).joinpath(basename)))
                 files[cur_dir] = basename
                 i += 1
         return files
@@ -389,8 +390,8 @@ class HgManager:
     def local_archive(self, filename, remove_first=False):
         # Somebody needs to test this one - I don't use Mercurial
         with lcd(self.dir):
-            if remove_first: local("rm -f %s" % filename)
-            local("hg archive -t zip %s" % filename)
+            if remove_first: operations.local("rm -f %s" % filename)
+            operations.local("hg archive -t zip %s" % filename)
 
 
 class ConfigurationException(StandardError):
@@ -594,7 +595,7 @@ class DjangoManager:
         for dir, file in files.iteritems():
             local_archive_path = temp_local_path.joinpath(file)
             remote_archive_path = temp_remote_path.joinpath(file)
-            put(str(local_archive_path), str(temp_remote_path), use_sudo=True)
+            operations.put(str(local_archive_path), str(temp_remote_path), use_sudo=True)
             local_file_delete(local_archive_path)
 
             #unzip file
@@ -635,7 +636,7 @@ class DjangoManager:
 
     @django_check_config
     def dump_database_to_json(self):
-        local("django-admin.py dumpdata studentoffice auth > ./src/studentoffice/fixtures/initial_data.json")
+        operations.local("django-admin.py dumpdata studentoffice auth > ./src/studentoffice/fixtures/initial_data.json")
 
     @django_check_config
     def manage(self, command):

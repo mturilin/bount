@@ -380,11 +380,11 @@ class DalkStack(Stack):
 
     @classmethod
     def build_stack(cls, settings_module, dependencies_path, project_name, source_root,
-                    use_virtualenv=True, precompilers=None):
+                    use_virtualenv=True, precompilers=None, ubuntu_dependencies_path=None):
         global current_stack
 
         current_stack = cls(settings_module, dependencies_path, project_name, source_root,
-            use_virtualenv, precompilers=precompilers)
+            use_virtualenv, precompilers=precompilers, ubuntu_dependencies_path=ubuntu_dependencies_path)
 
         return current_stack
 
