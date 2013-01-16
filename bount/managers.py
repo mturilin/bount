@@ -8,7 +8,7 @@ from path import path
 import types
 from bount import timestamp_str
 from bount import cuisine
-from bount.cuisine import cuisine_sudo, dir_ensure, file_read, text_ensure_line, file_write, dir_attribs
+from bount.cuisine import cuisine_sudo, dir_ensure, file_read, text_ensure_line, file_write, dir_attribs, file_exists
 from bount.utils import local_file_delete, file_delete, python_egg_ensure, file_unzip, text_replace_line_re, sudo_pipeline, clear_dir, dir_delete, remote_home, unix_eol, local_dir_ensure, local_dirs_delete
 
 __author__ = 'mturilin'
@@ -82,6 +82,17 @@ class PythonManager():
             with cuisine_sudo():
                 dir_ensure(self.virtualenv_path, recursive=True, mode=777)
                 dir_attribs(self.virtualenv_path, mode=777, recursive=True)
+
+            # make lib synlinks to install PIL correctly
+            with cuisine_sudo():
+                if not file_exists("/usr/lib/libfreetype.so"):
+                    run("ln -s /usr/lib/x86_64-linux-gnu/libfreetype.so /usr/lib/")
+
+                if not file_exists("/usr/lib/libz.so"):
+                    run("ln -s /usr/lib/x86_64-linux-gnu/libz.so /usr/lib/")
+
+                if not file_exists("/usr/lib/libjpeg.so"):
+                    run("ln -s /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/")
 
             with cd(self.virtualenv_path):
                 run('VIRTUALENV_EXTRA_SEARCH_DIR="%s" && virtualenv %s' % (python_path, self.virtualenv_name))

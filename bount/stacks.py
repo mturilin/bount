@@ -3,7 +3,6 @@ from django.utils.importlib import import_module
 from fabric.context_managers import cd, lcd
 from fabric.operations import get, put
 import os
-import imp
 from managers import SqliteManager
 from path import path
 import sys
@@ -120,30 +119,32 @@ class DalkStack(Stack):
     apache = None
 
     def __init__(self, settings_module, dependencies_path, project_name, source_root, use_virtualenv,
-                 local_backup_dir='backup', precompilers=None):
+                 local_backup_dir='backup', precompilers=None, ubuntu_dependencies_path=None):
         self.precompilers = precompilers or []
 
         self.ubuntu = UbuntuManager()
-        self.ubuntu.dependencies = [
-            "postgresql",
-            "apache2",
-            "libapache2-mod-wsgi",
-            "unzip",
-            "python",
-            "python-setuptools",
-            "python-dev",
-            "build-essential",
-            "rdiff-backup",
-            "python-flup",
-            "python-sqlite",
-            "git",
-            "python-recaptcha",
-            "python-imaging",
-            "python-pip",
-            "libpq-dev",
-            "python-psycopg2",
-            "ntp"
-        ]
+        if ubuntu_dependencies_path:
+            with open(ubuntu_dependencies_path, 'r') as ubuntu_dep_file:
+                self.ubuntu.dependencies = ubuntu_dep_file.read().split('\n')
+        else:
+            self.ubuntu.dependencies = [
+                "postgresql",
+                "apache2",
+                "libapache2-mod-wsgi",
+                "unzip",
+                "python",
+                "python-setuptools",
+                "python-dev",
+                "build-essential",
+                "rdiff-backup",
+                "python-flup",
+                "python-sqlite",
+                "git",
+                "python-imaging",
+                "python-pip",
+                "libpq-dev",
+                "ntp"
+            ]
 
         for precomp in self.precompilers:
             self.ubuntu.dependencies += precomp.get_os_dependencies()
@@ -453,11 +454,13 @@ def update():
 
     backup_database()
     current_stack.upload()
+    current_stack.setup_python_dependencies()
     current_stack.migrate_data()
     current_stack.collect_static()
     current_stack.start_restart_webserver()
 
     after_update()
+
 
 def update_python_dependencies():
     current_stack.setup_python_dependencies()
@@ -494,6 +497,7 @@ def media_restore_remote():
 def media_snapshot_local():
     current_stack.archive_local_media()
 
+
 def media_restore_local():
     current_stack.media_restore_local_latest()
 
@@ -503,6 +507,7 @@ def remote_restore():
     media_restore_remote()
     db_restore_remote()
 
+
 def remote_snapshot():
     media_snapshot_remote()
     db_snapshot_remote()
@@ -511,6 +516,7 @@ def remote_snapshot():
 def enable_debug():
     current_stack.enable_debug()
 
+
 def disable_debug():
     current_stack.disable_debug()
 
@@ -518,8 +524,10 @@ def disable_debug():
 def recreate_database_remote():
     current_stack.recreate_database()
 
+
 def enable_ntpd():
     current_stack.enable_ntpd()
+
 
 def disable_ntpd():
     current_stack.disable_ntpd()
