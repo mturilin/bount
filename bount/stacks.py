@@ -532,3 +532,5 @@ def enable_ntpd():
 def disable_ntpd():
     current_stack.disable_ntpd()
 
+def collectstatic():
+    current_stack.django.collect_static()
