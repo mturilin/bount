@@ -194,7 +194,7 @@ class PostgresManager(DatabaseManager):
 
     def drop_database(self):
         sudo("service postgresql restart")
-        sudo("echo DROP DATABASE %s | psql" % self.database_name, user=self.superuser_login)
+        operations.sudo("echo DROP DATABASE %s | psql" % self.database_name, user=self.superuser_login)
 
     def pg_hba_path(self):
         return '/etc/postgresql/%s/main/pg_hba.conf' % self.short_version()
