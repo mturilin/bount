@@ -269,7 +269,6 @@ class DalkStack(Stack):
         self.django.configure_wsgi()
         self.apache.configure_webserver(self.django.project_name, self.django.create_apache_config(),
             delete_other_sites=True)
-        self.apache.start()
 
     def start_restart_webserver(self):
         self.apache.restart()
@@ -534,3 +533,9 @@ def disable_ntpd():
 
 def collectstatic():
     current_stack.django.collect_static()
+
+
+def configure_webserver():
+    current_stack.apache.stop()
+    current_stack.configure_webserver()
+
