@@ -673,9 +673,7 @@ class DjangoManager:
             return cuisine.file_write(settings_file_path, unix_eol(settings_content)), replaced
 
 
-    @django_check_config
-    def create_apache_config(self):
-        apache_template = cuisine.text_strip_margin(
+    apache_template = cuisine.text_strip_margin(
             """
             |<VirtualHost *:80>
             |    ServerAdmin $server_admin
@@ -702,7 +700,11 @@ class DjangoManager:
             |</VirtualHost>
             """)
 
-        return cuisine.text_template(apache_template, self.__dict__)
+    @django_check_config
+    def create_apache_config(self):
+
+
+        return cuisine.text_template(self.apache_template, self.__dict__)
 
 
     @django_check_config
