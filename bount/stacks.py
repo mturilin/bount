@@ -464,7 +464,9 @@ before_update_python_dependencies = Event()
 after_update_python_dependencies = Event()
 
 def update_python_dependencies():
+    before_update_python_dependencies()
     current_stack.setup_python_dependencies()
+    after_update_python_dependencies()
 
 
 def start_restart_webserver():
