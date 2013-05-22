@@ -453,13 +453,15 @@ def update():
 
     backup_database()
     current_stack.upload()
-    current_stack.setup_python_dependencies()
     current_stack.migrate_data()
     current_stack.collect_static()
     current_stack.start_restart_webserver()
 
     after_update()
 
+
+before_update_python_dependencies = Event()
+after_update_python_dependencies = Event()
 
 def update_python_dependencies():
     current_stack.setup_python_dependencies()

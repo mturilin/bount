@@ -67,7 +67,7 @@ class MacLocalPostgres9Manager(LocalDbManager):
     def create_database(self, delete_if_exists=False):
         if self.database_exists():
             if delete_if_exists:
-                self.drop_database_connections()
+                # self.drop_database_connections()
                 self.psql("DROP database %s" % self.database_name, "template1", as_dba=True)
             else:
                 print("Skipping database creation because it is already exists")

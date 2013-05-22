@@ -620,8 +620,6 @@ class DjangoManager:
         ## upload ends here
         self.after_upload_code()
 
-        if self.webserver:
-            self.webserver.start()
 
     @django_check_config
     def collect_static(self):
