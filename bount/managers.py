@@ -345,6 +345,9 @@ class ApacheManagerForUbuntu():
 
         with cuisine_sudo():
             cuisine.file_write('/etc/apache2/sites-enabled/%s' % name, config)
+            run("ln -fs /etc/apache2/mods-available/rewrite.load /etc/apache2/mods-enabled/rewrite.load")
+            run("ln -s /etc/apache2/mods-available/ssl.load /etc/apache2/mods-enabled/ssl.load")
+
             print("Apache configured\n%s" % config)
 
 
