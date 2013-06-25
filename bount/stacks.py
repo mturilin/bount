@@ -410,10 +410,20 @@ class DalkStack(Stack):
 #        print("the lastest upload copy found: %s" % zip_file)
 #        local_gunzip(zip_file, settings.MEDIA_ROOT, overwrite=True)
 
+after_deployment = Event()
+
+def deployment(func):
+    def inner(*args, **kwargs):
+        res = func(*args, **kwargs)
+        after_deployment(func.__name__)
+        return res
+    return inner
+
 
 before_install = Event()
 after_install = Event()
 
+@deployment
 def install():
     before_install()
 
@@ -436,6 +446,7 @@ def install():
 before_update_code = Event()
 after_update_code = Event()
 
+@deployment
 def update_code():
     before_update_code()
 
@@ -448,6 +459,7 @@ def update_code():
 before_update = Event()
 after_update = Event()
 
+@deployment
 def update():
     before_update()
 
@@ -463,6 +475,7 @@ def update():
 before_update_python_dependencies = Event()
 after_update_python_dependencies = Event()
 
+@deployment
 def update_python_dependencies():
     before_update_python_dependencies()
     current_stack.setup_python_dependencies()
@@ -485,6 +498,7 @@ def db_snapshot_remote():
     current_stack.download_db_dump()
 
 
+@deployment
 def db_restore_remote():
     current_stack.restore_latest_db_dump()
 
@@ -493,6 +507,7 @@ def media_snapshot_remote():
     current_stack.download_media()
 
 
+@deployment
 def media_restore_remote():
     current_stack.restore_latest_media()
 
@@ -535,6 +550,7 @@ def enable_ntpd():
 def disable_ntpd():
     current_stack.disable_ntpd()
 
+@deployment
 def collectstatic():
     current_stack.django.collect_static()
 
