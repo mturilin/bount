@@ -708,45 +708,46 @@ class DjangoManager:
         return cuisine.text_template(self.apache_template, self.__dict__)
 
 
+    wsgi_template = cuisine.text_strip_margin(
+        """
+        |import os
+        |import sys
+        |import site
+        |
+        |# prevent errors with 'print' commands
+        |sys.stdout = sys.stderr
+        |
+        |# adopted from http://code.google.com/p/modwsgi/wiki/VirtualEnvironments
+        |def add_to_path(dirs):
+        |    # Remember original sys.path.
+        |    prev_sys_path = list(sys.path)
+        |
+        |    # Add each new site-packages directory.
+        |    for directory in dirs:
+        |        site.addsitedir(directory)
+        |
+        |    # Reorder sys.path so new directories at the front.
+        |    new_sys_path = []
+        |    for item in list(sys.path):
+        |        if item not in prev_sys_path:
+        |            new_sys_path.append(item)
+        |            sys.path.remove(item)
+        |    sys.path[:0] = new_sys_path
+        |
+        |add_to_path([
+        |     $virtualenv_path
+        |
+        |     '$src_root',
+        |])
+        |
+        |os.environ['DJANGO_SETTINGS_MODULE'] = '$settings_module'
+        |
+        |import django.core.handlers.wsgi
+        |application = django.core.handlers.wsgi.WSGIHandler()
+        """)
+
     @django_check_config
     def create_wsgi_handler(self):
-        wsgi_template = cuisine.text_strip_margin(
-            """
-            |import os
-            |import sys
-            |import site
-            |
-            |# prevent errors with 'print' commands
-            |sys.stdout = sys.stderr
-            |
-            |# adopted from http://code.google.com/p/modwsgi/wiki/VirtualEnvironments
-            |def add_to_path(dirs):
-            |    # Remember original sys.path.
-            |    prev_sys_path = list(sys.path)
-            |
-            |    # Add each new site-packages directory.
-            |    for directory in dirs:
-            |        site.addsitedir(directory)
-            |
-            |    # Reorder sys.path so new directories at the front.
-            |    new_sys_path = []
-            |    for item in list(sys.path):
-            |        if item not in prev_sys_path:
-            |            new_sys_path.append(item)
-            |            sys.path.remove(item)
-            |    sys.path[:0] = new_sys_path
-            |
-            |add_to_path([
-            |     $virtualenv_path
-            |
-            |     '$src_root',
-            |])
-            |
-            |os.environ['DJANGO_SETTINGS_MODULE'] = '$settings_module'
-            |
-            |import django.core.handlers.wsgi
-            |application = django.core.handlers.wsgi.WSGIHandler()
-            """)
 
         if self.use_virtualenv:
             virtualenv_template = cuisine.text_strip_margin("""
@@ -755,6 +756,7 @@ class DjangoManager:
 
             context = {
                 'site_root': self.remote_site_path,
+                'project_root': self.remote_project_path,
                 'python_version': self.python.get_short_version(),
                 'virtualenv_name': self.virtualenv_name
             }
@@ -766,7 +768,7 @@ class DjangoManager:
         if self.env_path:
             context = self.__dict__.copy()
             context['virtualenv_path'] = virtualenv_path
-            return cuisine.text_template(wsgi_template, context)
+            return cuisine.text_template(self.wsgi_template, context)
         else:
             raise RuntimeError("Properties env_path and $project_local_path should be set to configure web server")
 
