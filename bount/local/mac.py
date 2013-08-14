@@ -101,7 +101,7 @@ class MacLocalPostgres9Manager(LocalDbManager):
 
         return sorted(sql_file_list)[-1]
 
-    def restore_database(self, delete_if_exists=False):
+    def restore_database(self, file_name, delete_if_exists=False):
         self.create_database(delete_if_exists)
         if self.use_zip:
             command = "cat %s | gunzip | %s"
@@ -109,7 +109,8 @@ class MacLocalPostgres9Manager(LocalDbManager):
             command = "cat %s | %s"
 
 
-        init_sql_file = path(self.backup_path).joinpath(self.latest_db_dump_basename())
+        init_sql_file = path(self.backup_path).joinpath(
+            self.latest_db_dump_basename() if file_name == '' else file_name)
 
         return run(command % (init_sql_file, self.psql_command_db()))
 
@@ -117,8 +118,8 @@ class MacLocalPostgres9Manager(LocalDbManager):
         prefix = self.backup_prefix if self.backup_prefix else self.database_name
         return "%s_db_%s_local.sql.gz" % (prefix, timestamp_str())
 
-    def backup_database(self):
-        filepath = path(self.backup_path).joinpath(self._create_db_backup_name())
+    def backup_database(self, file_name=''):
+        filepath = path(self.backup_path).joinpath(self._create_db_backup_name() if file_name == '' else file_name)
 
         dump_command = "%s/pg_dump -O -x %s -U %s -w -h %s" % (self.bin_path, self.database_name, self.user, self.host)
 
@@ -126,7 +127,6 @@ class MacLocalPostgres9Manager(LocalDbManager):
             command = "%s | gzip > %s" % (dump_command, filepath)
         else:
             command = "%s > %s" % (dump_command, filepath)
-
         run(command)
 
     @classmethod
