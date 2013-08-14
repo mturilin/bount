@@ -19,11 +19,11 @@ current_local_db_manager = None
 
 
 
-def db_snapshot_local(file_name=''):
-    current_local_db_manager.backup_database(file_name)
+def db_snapshot_local():
+    current_local_db_manager.backup_database()
 
-def db_restore_local(delete_if_exists=True, file_name=''):
-    current_local_db_manager.restore_database(delete_if_exists=delete_if_exists, file_name=file_name)
+def db_restore_local(delete_if_exists=True):
+    current_local_db_manager.restore_database(delete_if_exists=delete_if_exists)
 
 
 def local_snapshot():
