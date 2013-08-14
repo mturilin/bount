@@ -1,4 +1,7 @@
+# -*- coding: utf-8 -*-
 __author__ = 'mturilin'
+import sys
+sys.path.insert(0, '/Users/gusevsergey/Projects/bount')
 
 from fabric.state import env
 import getpass
@@ -22,14 +25,18 @@ precompilers = [
     ]
 
 
+#ToDo: Формат передаваемых данных.
+"""
 stack = DalkStack.build_stack(
-    settings_path='settings_production',
+    settings_module='settings_production',
     dependencies_path=PROJECT_ROOT.joinpath('REQUIREMENTS'),
     project_name='getccna',
     source_root=PROJECT_ROOT.joinpath('src'),
     precompilers=precompilers)
+"""
 
-
+#ToDo: Проверить роботоспособность этого примера. Вроде первый четыре параметра передаются без имени.
+"""
 MacLocalPostgres9Manager.build_manager(
     database_name='getccnaru',
     user='mturilin',
@@ -38,8 +45,17 @@ MacLocalPostgres9Manager.build_manager(
     dba_login='mturilin',
     dba_password='',
     backup_prefix="getccna")
+"""
 
-
+MacLocalPostgres9Manager.build_manager(
+    'skillfactory',
+    'gusevsergey',
+    '',
+    path(__file__).dirname().joinpath('backup/db_dump'),
+    dba_login='gusevsergey',
+    dba_password='begemot',
+    backup_prefix="skillfactory",
+    bin_path="/usr/bin")
 
 
 def test1():
