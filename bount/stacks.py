@@ -189,7 +189,7 @@ class DalkStack(Stack):
             remote_src_path, settings_module=settings_module,
             use_virtualenv=use_virtualenv, virtualenv_path=remote_site_path,
             media_root=media_root, media_url=media_url, static_root=static_root, static_url=static_url,
-            server_admin=server_admin, precompilers=precompilers)
+            server_admin=server_admin, precompilers=precompilers, settings=settings)
 
         self.django.webserver = self.apache
 
@@ -475,6 +475,14 @@ def update():
 before_update_python_dependencies = Event()
 after_update_python_dependencies = Event()
 
+
+@deployment
+def migrate():
+    backup_database()
+    current_stack.migrate_data()
+    current_stack.start_restart_webserver()
+
+
 @deployment
 def update_python_dependencies():
     before_update_python_dependencies()
@@ -551,8 +559,8 @@ def disable_ntpd():
     current_stack.disable_ntpd()
 
 @deployment
-def collectstatic():
-    current_stack.django.collect_static()
+def collectstatic(clear=False):
+    current_stack.django.collect_static(clear)
 
 
 def configure_webserver():

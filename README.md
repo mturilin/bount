@@ -11,10 +11,10 @@ Here enters the Bount, a simple Django deployment and lifecycle management tool 
 
 Bount defines a number of "stacks" (currently one). Each stack defines a stable combination of the platform components. Current stack, DalkStack is able to configure the following set of technologies:
 
-* Ubuntu 11.10 (will be replaced with the next LTS)
+* Ubuntu 12.04 (will be replaced with the next LTS)
 * Apache2
-* PostgreSQL 8 or 9
-* Django 1.3.1 (should work fine with 1.4 as well)
+* PostgreSQL это9
+* Django 1.5
 
 Bount makes all project deployment to be as easy as writing 5-10 lines of code once, and using simple commands to perform most of the usual project deployment routine.
 

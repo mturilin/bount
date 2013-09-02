@@ -346,7 +346,10 @@ class ApacheManagerForUbuntu():
         with cuisine_sudo():
             cuisine.file_write('/etc/apache2/sites-enabled/%s' % name, config)
             run("ln -fs /etc/apache2/mods-available/rewrite.load /etc/apache2/mods-enabled/rewrite.load")
-            run("ln -s /etc/apache2/mods-available/ssl.load /etc/apache2/mods-enabled/ssl.load")
+
+            ssl_load = '/etc/apache2/mods-enabled/ssl.load'
+            if not file_exists(ssl_load):
+                run("ln -s /etc/apache2/mods-available/ssl.load /etc/apache2/mods-enabled/ssl.load")
 
             print("Apache configured\n%s" % config)
 
@@ -467,7 +470,7 @@ class DjangoManager:
                  use_virtualenv=True, virtualenv_path=None, virtualenv_name='ENV',
                  media_root=None, media_url=None, static_root=None, static_url=None,
                  static_dirs=None,
-                 server_admin=None, precompilers=None):
+                 server_admin=None, precompilers=None, settings=None):
         logger.info("Creating DjangoManager")
 
         self.remote_project_path = remote_project_path
@@ -499,6 +502,8 @@ class DjangoManager:
         self.webserver = None
         self.python = None
         self.server_admin = server_admin
+
+        self.settings = settings or object()
 
         if precompilers:
             self.precompilers = precompilers
@@ -572,9 +577,6 @@ class DjangoManager:
 
     @django_check_config
     def upload_code(self, update_submodules=True):
-        if self.webserver:
-            self.webserver.stop()
-
         self.before_upload_code()
 
         # we need to ensure the directory is open for writing
@@ -603,6 +605,9 @@ class DjangoManager:
 
             #unzip file
             with cuisine_sudo():
+                if self.webserver:
+                    self.webserver.stop()
+
                 extdir = path(self.remote_project_path).joinpath(dir).abspath()
                 dir_ensure(extdir, recursive=True, mode='777')
                 file_unzip(remote_archive_path, extdir)
@@ -762,11 +767,13 @@ class DjangoManager:
             }
 
             virtualenv_path = cuisine.text_template(virtualenv_template, context)
+
         else:
             virtualenv_path = ''
 
         if self.env_path:
-            context = self.__dict__.copy()
+            context = self.settings.__dict__
+            context.update(self.__dict__.copy())
             context['virtualenv_path'] = virtualenv_path
             return cuisine.text_template(self.wsgi_template, context)
         else:
@@ -781,10 +788,16 @@ class DjangoManager:
 
 
     @django_check_config
-    def collect_static(self):
+    def collect_static(self, clear=False):
         for dir in self.static_dirs:
             dir_ensure(dir, recursive=True, mode='777')
-        self.manage("collectstatic --noinput")
+        
+        command = "collectstatic --noinput"
+
+        if clear:
+            command += " --clear"
+
+        self.manage(command)
 
     def create_backup_script(self, folder=None):
         folder = folder or '/tmp'
