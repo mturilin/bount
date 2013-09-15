@@ -556,7 +556,7 @@ class DjangoManager:
     def after_upload_code(self):
         pass
 
-    def clear_remote_project_path_save_site(self):
+    def reset_project_dir(self):
         home_dir = remote_home()
         site_path_basename = path(self.remote_site_path).name
         with cuisine_sudo():
@@ -583,25 +583,32 @@ class DjangoManager:
         with cuisine_sudo():
             dir_attribs(self.remote_project_path, mode='777')
 
-        self.clear_remote_project_path_save_site()
 
         temp_dir_prefix = 'django_temp_'
 
         # zip and upload file
         temp_dir = temp_dir_prefix + self.project_name + '_' + timestamp_str()
 
-        temp_remote_path = path(self.remote_project_path).joinpath(temp_dir)
+        temp_remote_path = path(remote_home()).joinpath('tmp').joinpath(temp_dir)
         temp_local_path = path(self.project_local_path).joinpath(temp_dir)
         local_dir_ensure(temp_local_path)
-        dir_ensure(temp_remote_path)
+        dir_ensure(temp_remote_path, recursive=True)
 
         files = self.scm.local_archive(temp_local_path, include_submodules=update_submodules)
 
+        # upload files
         for dir, file in files.iteritems():
             local_archive_path = temp_local_path.joinpath(file)
             remote_archive_path = temp_remote_path.joinpath(file)
             operations.put(str(local_archive_path), str(temp_remote_path), use_sudo=True)
             local_file_delete(local_archive_path)
+
+        # reset project dir
+        self.reset_project_dir()
+
+        # unpack files
+        for dir, file in files.iteritems():
+            remote_archive_path = temp_remote_path.joinpath(file)
 
             #unzip file
             with cuisine_sudo():
