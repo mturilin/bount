@@ -438,7 +438,6 @@ def install():
     current_stack.migrate_data()
     current_stack.collect_static()
     current_stack.configure_webserver()
-    current_stack.start_restart_webserver()
 
     after_install()
 

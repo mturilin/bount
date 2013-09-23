@@ -37,6 +37,8 @@ def aptget_install(dependencies):
 def pip_install(dependencies):
     generic_install(dependencies, lambda dep_str: python_egg_ensure(dep_str))
 
+def pip_install_file_requirements(file_path):
+    cuisine.run("pip install -r %s" % file_path)
 
 class UbuntuManager():
     def __init__(self):
@@ -100,20 +102,31 @@ class PythonManager():
 
 
     def setup_dependencies(self):
-        file_dependencies = []
-        if self.req_file:
-            with open(self.req_file, 'r') as file:
-                dep_str = file.read()
-                file_dependencies = [str.split('==') for str in dep_str.split('\n') if str != '']
+        #file_dependencies = []
+        #if self.req_file:
+        #    with open(self.req_file, 'r') as file:
+        #        dep_str = file.read()
+        #        file_dependencies = [str.split('==') for str in dep_str.split('\n') if str != '']
+        #
+
+        temp_path = path(remote_home()).joinpath('tmp')
+        with cuisine_sudo():
+            dir_ensure(temp_path)
+
+        operations.put(self.req_file, str(temp_path), use_sudo=True)
+
+        remote_req_file = temp_path.joinpath(path(self.req_file).basename())
 
         if self.use_virtualenv:
             with virtualenv(self.virtualenv_path, self.virtualenv_name):
                 pip_install(self.dependencies)
-                pip_install(file_dependencies)
+                pip_install_file_requirements(remote_req_file)
         else:
             with cuisine_sudo():
                 pip_install(self.dependencies)
-                pip_install(file_dependencies)
+                pip_install_file_requirements(remote_req_file)
+
+
 
     def get_version_pattern(self, pattern):
         ver_str = cuisine.run('python --version')
@@ -592,7 +605,8 @@ class DjangoManager:
         temp_remote_path = path(remote_home()).joinpath('tmp').joinpath(temp_dir)
         temp_local_path = path(self.project_local_path).joinpath(temp_dir)
         local_dir_ensure(temp_local_path)
-        dir_ensure(temp_remote_path, recursive=True)
+        with cuisine_sudo():
+            dir_ensure(temp_remote_path, recursive=True, mode='666')
 
         files = self.scm.local_archive(temp_local_path, include_submodules=update_submodules)
 
