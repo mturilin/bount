@@ -155,7 +155,7 @@ class DatabaseManager(object):
     def configure(self, enable_remote_access=False):
         pass
 
-    def backup_database(self, filename, zip=False, folder=None):
+    def backup_database(self, filename, zip=False, folder=None, ignore_tables=None):
         pass
 
     def init_database(self, init_sql_file, delete_if_exists=False, unzip=False):
@@ -278,7 +278,7 @@ class PostgresManager(DatabaseManager):
         run("rm ~/.pgpass")
 
 
-    def backup_database(self, filename, zip=False, folder=None):
+    def backup_database(self, filename, zip=False, folder=None, ignore_tables=None):
         folder = folder or self.db_backup_folder
 
         with cuisine.cuisine_sudo():
@@ -286,9 +286,15 @@ class PostgresManager(DatabaseManager):
 
         file_full_path = "/".join([folder, filename])
 
+        additional_argument = ''
+
+        if ignore_tables:
+            for table in ignore_tables:
+                additional_argument += " -T '%s'" % table
+
         with self.pg_pass():
-            sudo_pipeline(("pg_dump -O -x %s | gzip > %s" if zip else "pg_dump %s > %s")
-            % (self.database_name, file_full_path), user=self.superuser_login)
+            sudo_pipeline(("pg_dump -O -x %s %s | gzip > %s" if zip else "pg_dump %s > %s")
+            % (self.database_name, additional_argument, file_full_path), user=self.superuser_login)
 
     def init_database(self, init_sql_file, delete_if_exists=False, unzip=False):
         self.create_database(delete_if_exists)

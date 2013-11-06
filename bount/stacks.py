@@ -37,13 +37,16 @@ class Stack(object):
     def start_restart_webserver(self):
         raise NotImplementedError('Method is not implemented')
 
+    def stop_webserver(self):
+        raise NotImplementedError('Method is not implemented')
+
     def backup_database(self):
         raise NotImplementedError('Method is not implemented')
 
     def migrate_data(self):
         raise NotImplementedError('Method is not implemented')
 
-    def download_db_dump(self):
+    def download_db_dump(self, ignore_tables=None):
         raise NotImplementedError('Method is not implemented')
 
     def restore_latest_db_dump(self):
@@ -237,6 +240,7 @@ class DalkStack(Stack):
         self.ubuntu.setup_dependencies()
 
     def setup_python_dependencies(self):
+        self.apache.stop()
         self.python.init(delete_if_exists=False, python_path=self.django.src_root)
         self.python.setup_dependencies()
         self.django.configure_virtualenv()
@@ -285,13 +289,13 @@ class DalkStack(Stack):
         self.django.migrate_data()
 
 
-    def download_db_dump(self):
+    def download_db_dump(self, ignore_tables=None):
         remote_file_basename = self._create_db_backup_name()
         remote_dir = "/tmp"
         remote_file_path = "%s/%s" % (remote_dir, remote_file_basename)
 
         dir_ensure(remote_dir, mode='777')
-        self.database.backup_database(remote_file_basename, folder=remote_dir, zip=True)
+        self.database.backup_database(remote_file_basename, folder=remote_dir, zip=True, ignore_tables=ignore_tables)
 
         local_dir_ensure(self.local_db_dump_dir)
         get(remote_file_path, self.local_db_dump_dir)
@@ -404,6 +408,9 @@ class DalkStack(Stack):
     def disable_ntpd(self):
         self.ubuntu.disable_ntpd()
 
+    def stop_webserver(self):
+        self.apache.stop()
+
 
 #    def update_local_media(self):
 #        zip_file = path(local_upload_dump_dir).joinpath(self.latest_uploaded_archive())
@@ -450,6 +457,7 @@ def update_code():
     before_update_code()
 
     current_stack.upload()
+    #current_stack.setup_python_dependencies()
     current_stack.start_restart_webserver()
 
     after_update_code()
@@ -464,6 +472,7 @@ def update():
 
     backup_database()
     current_stack.upload()
+    #current_stack.setup_python_dependencies()
     current_stack.migrate_data()
     current_stack.collect_static()
     current_stack.start_restart_webserver()
@@ -485,12 +494,17 @@ def migrate():
 @deployment
 def update_python_dependencies():
     before_update_python_dependencies()
+    current_stack.stop_webserver()
     current_stack.setup_python_dependencies()
+    current_stack.start_restart_webserver()
     after_update_python_dependencies()
 
 
 def start_restart_webserver():
     current_stack.start_restart_webserver()
+
+def stop_webserver():
+    current_stack.stop_webserver()
 
 before_backup_database = Event()
 after_backup_database = Event()
@@ -501,8 +515,9 @@ def backup_database():
     after_backup_database()
 
 
-def db_snapshot_remote():
-    current_stack.download_db_dump()
+def db_snapshot_remote(ignore_tables_list=''):
+    ignore_tables = ignore_tables_list.split(',')
+    current_stack.download_db_dump(ignore_tables or [])
 
 
 @deployment
