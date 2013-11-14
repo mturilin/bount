@@ -290,10 +290,10 @@ class PostgresManager(DatabaseManager):
 
         if ignore_tables:
             for table in ignore_tables:
-                additional_argument += " -T '%s'" % table
+                additional_argument = "%s -T '%s'" % (additional_argument, table)
 
         with self.pg_pass():
-            sudo_pipeline(("pg_dump -O -x %s %s | gzip > %s" if zip else "pg_dump %s > %s")
+            sudo_pipeline(("pg_dump -O -x %s %s | gzip > %s" if zip else "pg_dump %s %s > %s")
             % (self.database_name, additional_argument, file_full_path), user=self.superuser_login)
 
     def init_database(self, init_sql_file, delete_if_exists=False, unzip=False):
