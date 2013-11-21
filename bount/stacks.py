@@ -515,8 +515,11 @@ def backup_database():
     after_backup_database()
 
 
-def db_snapshot_remote(ignore_tables_list=''):
-    ignore_tables = ignore_tables_list.split(',')
+def db_snapshot_remote(ignore_tables_list=None):
+    if ignore_tables_list:
+        ignore_tables = ignore_tables_list.split(',')
+    else:
+        ignore_tables = None
     current_stack.download_db_dump(ignore_tables or [])
 
 
