@@ -79,6 +79,9 @@ class Stack(object):
     def recreate_database(self):
         raise NotImplementedError('Method is not implemented')
 
+    def django_manage(self, command):
+        raise NotImplementedError('Method is not implemented')
+
 #    def update_local_media(self):
 #        raise NotImplementedError('Method is not implemented')
 
@@ -411,6 +414,9 @@ class DalkStack(Stack):
     def stop_webserver(self):
         self.apache.stop()
 
+    def django_manage(self, command):
+        self.django.manage(command)
+
 
 #    def update_local_media(self):
 #        zip_file = path(local_upload_dump_dir).joinpath(self.latest_uploaded_archive())
@@ -583,4 +589,7 @@ def collectstatic(clear=False):
 def configure_webserver():
     current_stack.apache.stop()
     current_stack.configure_webserver()
+
+def django_manage(command):
+    current_stack.django_manage(command)
 

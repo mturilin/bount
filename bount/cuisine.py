@@ -182,7 +182,6 @@ def text_replace_line(text, old, new, find=lambda old, new:old == new, process=l
             res.append(line)
     return eol.join(res), replaced
 
-
 def text_ensure_line(text, *lines):
     """Ensures that the given lines are present in the given text, otherwise appends the lines
      that are not already in the text at the end of it."""
@@ -190,14 +189,29 @@ def text_ensure_line(text, *lines):
     res = list(text.split(eol))
     for line in lines:
         assert line.find(eol) == -1, "No EOL allowed in lines parameter: " + repr(line)
-        found = False
-        for l in res:
-            if l == res:
-                found = True
-                break
-        if not found:
+        if line not in res:
             res.append(line)
-    return eol.join(res)
+
+    new_text = eol.join(res)
+
+    return new_text
+
+
+def text_ensure_lines(text, lines, ensure_eol=True):
+    """Ensures that the given lines are present in the given text, otherwise appends the lines
+     that are not already in the text at the end of it."""
+    eol = text_detect_eol(text)
+    res = list(text.split(eol))
+    for line in lines:
+        assert line.find(eol) == -1, "No EOL allowed in lines parameter: " + repr(line)
+        if line not in res:
+            res.append(line)
+
+    new_text = eol.join(res)
+    if ensure_eol:
+        new_text += eol
+
+    return new_text
 
 
 def text_strip_margin( text, margin="|"):

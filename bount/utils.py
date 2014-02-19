@@ -12,17 +12,28 @@ from bount import cuisine
 __author__ = 'mturilin'
 
 
-def text_replace_line_re(text, pattern, new):
+def text_replace_line_re(text, pattern, new, ensure_eof_eol=True):
+    """
+    Replaces the line using regexp. If the new is False the line won't be added
+    """
     res = []
     replaced = 0
     for line in text.split("\n"):
         if re.match(pattern, line):
-            res.append(new)
+            if new != None:
+                res.append(new)
             replaced += 1
         else:
             res.append(line)
     return "\n".join(res), replaced
 
+
+def delete_lines_re(text, lines):
+    new_text = text
+    for line in lines:
+        new_text = text_replace_line_re(new_text, line, None)[0]
+
+    return new_text, (new_text != text)
 
 def file_unzip(filename, extdir="."):
     cuisine.run("unzip %s -d %s" % (filename, extdir))
@@ -32,7 +43,9 @@ def local_file_delete(file):
     local("rm %s" % file)
 
 
-def file_delete(file):
+def file_delete(file, only_if_exists=True):
+    if only_if_exists and not cuisine.file_exists(file):
+        return
     cuisine.run("rm %s" % file)
 
 
@@ -247,9 +260,6 @@ def local_copy_files_and_folders(from_dir, to_dir):
 
 def unix_eol(string):
     return string.replace('\r','')
-
-
-
 
 
 
