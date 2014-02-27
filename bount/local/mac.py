@@ -108,9 +108,10 @@ class MacLocalPostgres9Manager(LocalDbManager):
         else:
             command = "cat %s | %s"
 
+        if not file_name:
+            file_name = self.latest_db_dump_basename()
 
-        init_sql_file = path(self.backup_path).joinpath(
-            self.latest_db_dump_basename() if file_name == '' else file_name)
+        init_sql_file = path(self.backup_path).joinpath(file_name)
 
         return run(command % (init_sql_file, self.psql_command_db()))
 
